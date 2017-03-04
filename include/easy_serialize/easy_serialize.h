@@ -1,22 +1,20 @@
 // Copyright (c) 2016 Matt Drees, Fluke Networks
 #pragma once
 
-#include <iostream>
-#include <vector>
-#include <string>
 #include <exception>
+#include <iostream>
+#include <map>
+#include <memory>
+#include <string>
+#include <vector>
 
-#include <rapidjson/document.h>
-#include <rapidjson/istreamwrapper.h>
-#include <rapidjson/ostreamwrapper.h>
-#include <rapidjson/prettywriter.h>
+#include "json_parser.h"
 
 // easy_serialize is a library and a client usage pattern with the following goals:
 //
 //  1. Easy to use for reading/writing JSON into C++ data structures.
-//  2. No virtual inheritance.
-//  3. Excellent error messages while reading/writing data formats.
-//  4. Versioning support. Fields/objects can be added without bumping the
+//  2. Excellent error messages while reading/writing data formats.
+//  3. Versioning support. Fields/objects can be added without bumping the
 //     minimum supported version.
 //
 // To achieve these goals there are some constraints:
@@ -26,11 +24,10 @@
 //  * All classes in the scheme must implement a serialize() template method.
 //  * Floating point numbers get their own category:
 //     * Only double is supported for now (not float).
-//     * Floating point numbers can't be NaN, +inf, or -inf.
+//     * Floating numbers can be NaN, +inf, -inf, but this is not strictly
+//       valid JSON. If you want valid json, don't use these values.
 //     * Floating point numbers print nicely to strings (e.g 1.1 instead of
-//       1.999999999...). This means that floating point numbers aren't
-//       preserved exactly in a to/from JSON operation, and get filtered by what
-//       can display in a decimal string.
+//       1.999999999...) using the fantastic double-conersion library.
 //
 // Example client code:
 //
@@ -38,18 +35,18 @@
 //    #include <vector>
 //    #include <easy_serialize/easy_serialize.h>
 //
-//    enum EnumThing {
-//        ENUM_THING_0,
-//        ENUM_THING_1,
-//        ENUM_THING_N,
+//    enum class EnumThing {
+//        Thing_1,
+//        Thing_2,
+//        End,
 //    };
 //
 //    const char* toString(EnumThing et)
 //    {
 //        switch (et) {
-//        case ENUM_THING_0: return "enum thing 0";
-//        case ENUM_THING_1: return "enum thing 1";
-//        case ENUM_THING_N: break;
+//        case Thing_0: return "thing 0";
+//        case Thing_1: return "thing 1";
+//        case End:     break;
 //        }
 //        return "";
 //    }
@@ -84,7 +81,7 @@
 //        {
 //            ar.doBool(b, "b");
 //            ar.doDouble(d, "d");
-//            ar.doEnum(et, ENUM_THING_N, "et");
+//            ar.doEnum(et, EnumThing::End, "et");
 //            ar.doObject(o, "o");
 //            ar.doString(s, "s");
 //            ar.doVecInt(v_i, "v_i");
@@ -97,7 +94,7 @@
 //        A a;
 //        a.b = true;
 //        a.d = 3.14159265358979;
-//        a.et = ENUM_THING_1;
+//        a.et = EnumThing::Thing_1;
 //        a.o.i = 120;
 //        a.v_o.emplace_back(1);
 //        a.v_o.emplace_back(2);
@@ -117,7 +114,7 @@
 //    {
 //      "b": true,
 //      "d": 3.14159265358979,
-//      "et": "enum thing 1",
+//      "et": "thing 1",
 //      "o": {
 //        "i": 120
 //      },
@@ -160,7 +157,8 @@ namespace easy_serialize
     {
     public:
         JsonReaderArchive(std::istream& is);
-        ~JsonReaderArchive();
+        JsonReaderArchive(const JsonReaderArchive&) = delete;
+        JsonReaderArchive& operator=(const JsonReaderArchive&) = delete;
 
         void doBool(bool&, const char* key);
         void doDouble(double&, const char* key);
@@ -180,20 +178,16 @@ namespace easy_serialize
         //void doVecEnum(std::vector<T>&, const char* key);
         //void doVecString(std::vector<std::string>&, const char* key);
 
-        JsonReaderArchive(const JsonReaderArchive&) = delete;
-        JsonReaderArchive& operator=(const JsonReaderArchive&) = delete;
-
     private:
 
-        void checkKey(const char* key);
+        //void checkKey(const char* key);
 
-        rapidjson::IStreamWrapper _isw;
-        std::vector<rapidjson::Value> _stack;
-        rapidjson::Document _d;
+        JsonValue _root;
+        std::vector<const JsonValue*> _stack;
     };
 
     std::string buildErrorKey(const char* key);
-    std::string buildErrorIndex(unsigned key);
+    std::string buildErrorIndex(size_t index);
     std::string buildErrorMessage(const char* key, const std::string& message);
 
     template<typename T>
@@ -222,13 +216,16 @@ namespace easy_serialize
     void JsonReaderArchive::doObject(T& t, const char* key)
     {
         try {
-            if (!_stack.back().HasMember(key)) {
+            auto& thisJsonVal = *_stack.back();
+            auto it = thisJsonVal.object.find(key);
+            if (it == thisJsonVal.object.end()) {
                 throw std::runtime_error(" key doesn't exist");
             }
-            if (!_stack.back()[key].IsObject()) {
+            auto& nextJsonValue = it->second;
+            if (nextJsonValue.jsonType != JsonType::Object) {
                 throw std::runtime_error(" expected an object");
             }
-            _stack.push_back(_stack.back()[key].GetObject());
+            _stack.push_back(&nextJsonValue);
             t.serialize(*this);
             _stack.pop_back();
         }
@@ -242,25 +239,27 @@ namespace easy_serialize
     void JsonReaderArchive::doVecObject(std::vector<T>& v_o, const char* key)
     {
         try {
-            if (!_stack.back().HasMember(key)) {
+            auto& thisJsonVal = *_stack.back();
+            auto it = thisJsonVal.object.find(key);
+            if (it == thisJsonVal.object.end()) {
                 throw std::runtime_error(" key doesn't exist");
             }
-            rapidjson::Value& value = _stack.back()[key];
-            if (!value.IsArray())
+            auto& nextJsonValue = it->second;
+            if (nextJsonValue.jsonType != JsonType::Array)
             {
-                throw std::runtime_error(" expected an array of objects");
+                throw std::runtime_error(" expected an array");
             }
             
             v_o.clear();
-            v_o.reserve(value.Size());
+            v_o.reserve(nextJsonValue.array.size());
 
-            for (rapidjson::SizeType i = 0; i < value.Size(); ++i) {
+            for (size_t i = 0; i < nextJsonValue.array.size(); ++i) {
                 try {
-                    if (!value[i].IsObject()) {
-                        throw std::runtime_error(" expected an object");
+                    if (nextJsonValue.array[i].jsonType != JsonType::Object) {
+                        throw std::runtime_error(" expected an array of objects");
                     }
                     T o;
-                    _stack.push_back(value[i].GetObject());
+                    _stack.push_back(&nextJsonValue.array[i]);
                     o.serialize(*this);
                     _stack.pop_back();
                     v_o.push_back(o);
@@ -281,8 +280,9 @@ namespace easy_serialize
     class JsonWriterArchive
     {
     public:
-        JsonWriterArchive(std::ostream&);
-        ~JsonWriterArchive();
+        JsonWriterArchive(std::ostream&, size_t indentSize=2);
+        JsonWriterArchive(const JsonWriterArchive&) = delete;
+        JsonWriterArchive& operator=(const JsonWriterArchive&) = delete;
 
         void doBool(bool&, const char* key);
         void doDouble(double&, const char* key);
@@ -297,50 +297,76 @@ namespace easy_serialize
         template<typename T>
         void doVecObject(std::vector<T>&, const char* key);
 
-        JsonWriterArchive(const JsonWriterArchive&) = delete;
-        JsonWriterArchive& operator=(const JsonWriterArchive&) = delete;
-
     private:
 
-        rapidjson::OStreamWrapper _osw;
-        rapidjson::PrettyWriter<rapidjson::OStreamWrapper> _writer;
+        std::ostream& _osw;
+        size_t _indentSize;
+        std::string _colon_str;
+        std::string _comma_str;
+        std::vector<bool> _isFirstFieldStack;
+
+        void writeKey(const char*);
     };
+
+    void JsonWriterArchive::writeKey(const char* key)
+    {
+        if (!_isFirstFieldStack.back()) {
+            _osw << ',';
+            _isFirstFieldStack.back() = false;
+        }
+        if (_indentSize > 0) {
+            _osw << std::endl;
+            _osw << std::string(_indentSize * _isFirstFieldStack.size(), ' ');
+        }
+        _osw << '"' << key << '"' << _colon_str;
+    }
 
     template<typename T>
     void JsonWriterArchive::doEnum(T& t, T /*maxEnum*/, const char* key)
     {
-        _writer.Key(key);
-        _writer.String(toString(t));
+        writeKey(key);
+        _osw << '"' << toString(t) << '"';
     }
 
     template<typename T>
     void JsonWriterArchive::doObject(T& o, const char* key)
     {
-        _writer.Key(key);
-        _writer.StartObject();
+        writeKey(key);
+        _osw << '{';
+        _isFirstFieldStack.push_back(true);
     
         o.serialize(*this);
     
-        _writer.EndObject();
+        if (!_isFirstFieldStack.back()) {
+            _osw << std::endl;
+            _osw << std::string(_indentSize * (_isFirstFieldStack.size()-1), ' ');
+        }
+        _isFirstFieldStack.pop_back();
+        _osw << '}';
     }
 
     template<typename T>
     void JsonWriterArchive::doVecObject(std::vector<T>& v_o, const char* key)
     {
-        _writer.Key(key);
-        _writer.StartArray();
+        writeKey(key);
+        _isFirstFieldStack.push_back(true);
+        //TODO get the spacing right in this B.
+        _osw << '[';
         for (auto& o : v_o) {
-            _writer.StartObject();
+            _osw << '{';
+            _isFirstFieldStack.push_back(true);
             o.serialize(*this);
-            _writer.EndObject();
+            _isFirstFieldStack.pop_back();
+            _osw << '}';
         }
-        _writer.EndArray();
+        _osw << ']';
+        _isFirstFieldStack.pop_back();
     }
 
     template<typename T>
-    void to_json_stream(T obj, std::ostream& os)
+    void to_json_stream(T obj, std::ostream& os, size_t indentSize)
     {
-        JsonWriterArchive a(os);
+        JsonWriterArchive a(os, indentSize);
         obj.serialize(a);
     }
 

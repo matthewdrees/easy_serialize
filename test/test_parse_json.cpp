@@ -6,73 +6,9 @@
 #include <string>
 #include <vector>
 
-#include "easy_serialize/easy_serialize.h"
+#include "easy_serialize/json_parser.h"
 
 using namespace std;
-using namespace easy_serialize;
-
-enum class EnumThing {
-    Thing_1,
-    Thing_2,
-    End,
-};
-
-const char* toString(EnumThing et)
-{
-    switch (et) {
-    case ENUM_THING_0: return "enum thing 0";
-    case ENUM_THING_1: return "enum thing 1";
-    case ENUM_THING_N: break;
-    }
-    return "";
-}
-
-class B
-{
-public:
-    int x;
-    string s;
-    std::vector<int> v_i;
-
-    template<class Archive>
-    void serialize(Archive& ar);
-};
-
-template<class Archive>
-void B::serialize(Archive& ar)
-{
-    ar.doInt(x, "x");
-    ar.doString(s, "s");
-    ar.doVecInt(v_i, "v_i");
-}
-
-class A
-{
-public:
-
-    template<class Archive>
-    void serialize(Archive& ar);
-
-    bool b;
-    double d;
-    int i;
-    EnumThing et;
-    B o;
-    vector<B> v_o;
-};
-
-template<class Archive>
-void A::serialize(Archive& ar)
-{
-    //const int CLASS_VERSION = 0;
-    //ar.doHeader("A", CLASS_VERSION);
-    ar.doBool(b, "b");
-    ar.doDouble(d, "d");
-    ar.doInt(i, "i");
-    ar.doObject(o, "o");
-    ar.doEnum(et, ENUM_THING_N, "et");
-    ar.doVecObject(v_o, "v_o");
-}
 
 void validate_exception(const char* file,
                         int line,
@@ -82,8 +18,7 @@ void validate_exception(const char* file,
 {
     try {
         istringstream iss(json);
-        A a;
-        from_json_stream(a, iss);
+        JsonValue jsonValue = parse_json(iss);
         to_json_stream(a, cout);
     }
     catch (const std::exception& ex)
@@ -117,8 +52,7 @@ void validate_json(const char* file,
 {
     try {
         istringstream iss(json);
-        A a;
-        from_json_stream(a, iss);
+        JsonValue jsonValue parse_json(iss);
         ostringstream oss;
         to_json_stream(a, oss);
 
@@ -154,35 +88,7 @@ int main()
     int num_tests_passed = 0;
 
     {
-        const string json = "{\n"
-            "  \"b\": true,\n"
-            "  \"d\": 3.14159265358979,\n"
-            "  \"i\": 9,\n"
-            "  \"o\": {\n"
-            "    \"x\": 8,\n"
-            "    \"s\": \"a string\",\n"
-            "    \"v_i\": [\n"
-            "      1,\n"
-            "      2,\n"
-            "      3\n"
-            "    ]\n"
-            "  },\n"
-            "  \"et\": \"enum thing 1\",\n"
-            "  \"v_o\": [\n"
-            "    {\n"
-            "      \"x\": 65535,\n"
-            "      \"s\": \"a string\",\n"
-            "      \"v_i\": []\n"
-            "    },\n"
-            "    {\n"
-            "      \"x\": 65534,\n"
-            "      \"s\": \"b string\",\n"
-            "      \"v_i\": [\n"
-            "        3\n"
-            "      ]\n"
-            "    }\n"
-            "  ]\n"
-            "}";
+        const string json = R"({})";
         VALIDATE_JSON(json);
     }
 
@@ -192,17 +98,17 @@ int main()
     }
 
     {
-        const string json = "{\n"
-            "  \"b\": 0,\n"
-            "  \"d\": 2.2,\n"
-            "  \"i\": 9,\n"
-            "  \"o\": {\n"
-            "    \"x\": 8,\n"
-            "    \"s\": \"s\",\n"
-            "    \"v_i\": [1, 2, 3]\n"
-            "  },\n"
-            "  \"et\": \"enum thing 0\"\n"
-            "}";
+        const string json = R"({
+  "b": 0,
+  "d": 2.2,
+  "i": 9,
+  "o": {
+    "x": 8,
+  "s": "s",
+  "v_i": [1, 2, 3]
+  },
+  "et": \"enum thing 0\"\n"
+"})";
         VALIDATE_EXCEPTION(json, "[\"b\"] expected a bool");
     }
 

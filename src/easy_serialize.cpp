@@ -3,7 +3,6 @@
 #include "easy_serialize/easy_serialize.h"
 
 using namespace std;
-using namespace rapidjson;
 
 namespace easy_serialize
 {
@@ -28,101 +27,137 @@ namespace easy_serialize
         return s;
     }
 
-    void JsonReaderArchive::checkKey(const char* key)
-    {
-        if (!_stack.back().HasMember(key)) {
-            throw runtime_error(buildErrorMessage(key, " key doesn't exist"));
-        }
-    }
-
     JsonReaderArchive::JsonReaderArchive(istream& is) :
-        _isw(is),
-        _stack()
+        _root(is),
+        _stack(1, &_root)
     {
-        _d.ParseStream(_isw);
-        if (!_d.IsObject()) {
-            throw runtime_error("root must be an object");
-        }
-        _stack.push_back(_d.GetObject());
-    }
-
-    JsonReaderArchive::~JsonReaderArchive()
-    {
-        _stack.pop_back();
+        //_stack.push_back(&_root);
     }
 
     void JsonReaderArchive::doBool(bool& b, const char* key)
     {
-        checkKey(key);
-        if (!_stack.back()[key].IsBool())
-        {
-            throw runtime_error(buildErrorMessage(key, " expected a bool"));
+        auto& thisJsonVal = *_stack.back();
+        auto it = thisJsonVal.object.find(key);
+        if (it == thisJsonVal.object.end()) {
+            throw runtime_error(buildErrorMessage(key, " key doesn't exist"));
         }
-        b = _stack.back()[key].GetBool();
+        auto& nextJsonValue = it->second;
+        if (nextJsonValue.field == "true") {
+            b = true;
+        }
+        else if (nextJsonValue.field == "false") {
+            b = false;
+        }
+        else
+        {
+            throw std::runtime_error(" expected an object");
+        }
     }
 
     void JsonReaderArchive::doDouble(double& d, const char* key)
     {
-        checkKey(key);
-        if (!_stack.back()[key].IsDouble())
-        {
-            throw runtime_error(buildErrorMessage(key, " expected a double"));
+        auto& thisJsonVal = *_stack.back();
+        auto it = thisJsonVal.object.find(key);
+        if (it == thisJsonVal.object.end()) {
+            throw runtime_error(buildErrorMessage(key, " key doesn't exist"));
         }
-        d = _stack.back()[key].GetDouble();
+        auto& nextJsonValue = it->second;
+        // TODO: actually get a number
+        if (nextJsonValue.field == "true") {
+            d = 1.0;
+        }
+        else
+        {
+            throw std::runtime_error(" expected a number");
+        }
     }
 
     void JsonReaderArchive::doInt(int& i, const char* key)
     {
-        checkKey(key);
-        if (!_stack.back()[key].IsInt()) {
-            throw runtime_error(buildErrorMessage(key, " expected an int"));
+        auto& thisJsonVal = *_stack.back();
+        auto it = thisJsonVal.object.find(key);
+        if (it == thisJsonVal.object.end()) {
+            throw runtime_error(buildErrorMessage(key, " key doesn't exist"));
         }
-        i = _stack.back()[key].GetInt();
+        auto& nextJsonValue = it->second;
+        try {
+            i = stoi(nextJsonValue.field);
+        }
+        catch (const std::invalid_argument&) {
+            throw std::runtime_error(" expected an integer");
+        }
+        catch (const std::out_of_range&) {
+            throw std::runtime_error(" integer out of range");
+        }
     }
 
     void JsonReaderArchive::doString(std::string& s, const char* key)
     {
-        checkKey(key);
-        if (!_stack.back()[key].IsString())
-        {
+        auto& thisJsonVal = *_stack.back();
+        auto it = thisJsonVal.object.find(key);
+        if (it == thisJsonVal.object.end()) {
+            throw runtime_error(buildErrorMessage(key, " key doesn't exist"));
+        }
+        auto& nextJsonValue = it->second;
+        if (nextJsonValue.jsonType == JsonType::Field) {
+            s = std::move(nextJsonValue.field);
+        }
+        else {
             throw runtime_error(buildErrorMessage(key, " expected a string"));
         }
-        s = _stack.back()[key].GetString();
     }
 
     void JsonReaderArchive::doVecInt(std::vector<int>& v, const char* key)
     {
-        checkKey(key);
-        const Value& value = _stack.back()[key];
-        if (!value.IsArray())
-        {
-            throw runtime_error(buildErrorMessage(key, " expected an array of integers"));
+        auto& thisJsonVal = *_stack.back();
+        auto it = thisJsonVal.object.find(key);
+        if (it == thisJsonVal.object.end()) {
+            throw runtime_error(buildErrorMessage(key, " key doesn't exist"));
         }
-        
-        v.clear();
-        v.reserve(value.Size());
+        auto& nextJsonValue = it->second;
+        if (nextJsonValue.jsonType == JsonType::Array) {
+            v.clear();
+            v.reserve(nextJsonValue.array.size());
 
-        for (SizeType i = 0; i < value.Size(); ++i) {
-            const Value& a = value[i];
-            if (!a.IsInt()) {
-                const string error = "[" + to_string(i) + "] expected an integer";
-                throw runtime_error(buildErrorMessage(key, error));
+            for (size_t i = 0; i < nextJsonValue.array.size(); ++i) {
+                int number;
+                try {
+                    number = stoi(nextJsonValue.field);
+                }
+                catch (const std::invalid_argument&) {
+                    const string error = "[" + to_string(i) + "] expected an integer";
+                    throw runtime_error(buildErrorMessage(key, error));
+                }
+                catch (const std::out_of_range&) {
+                    const string error = "[" + to_string(i) + "] integer out of range";
+                    throw runtime_error(buildErrorMessage(key, error));
+                }
+                v.push_back(number);
             }
-            v.push_back(a.GetInt());
+        }
+        else {
+            throw runtime_error(buildErrorMessage(key, " expected an array of integers"));
         }
     }
 
-    JsonWriterArchive::JsonWriterArchive(ostream& os) :
+    JsonWriterArchive::JsonWriterArchive(ostream& os, size_t indentSize) :
         _osw(os),
-        _writer(_osw)
+        _indentSize(indentSize)
     {
-        _writer.SetIndent(' ', 2);
-        _writer.StartObject();
+        if (indentSize > 0) {
+            _colon_str = ": ";
+            _comma_str = ", ";
+        }
+        else {
+            _colon_str = ":";
+            _comma_str = ",";
+        }
+        _isFirstFieldStack.push_back(true);
     }
 
     JsonWriterArchive::~JsonWriterArchive()
     {
-        _writer.EndObject();
+        _isFirstFieldStack.pop_back(); // Not strictly necessary
     }
 
     void JsonWriterArchive::doBool(bool& b, const char* key)
