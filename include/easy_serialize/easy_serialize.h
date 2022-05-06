@@ -1,15 +1,15 @@
-// Copyright (c) 2016 Matt Drees, Fluke Networks
 #pragma once
 
-#include <iostream>
-#include <vector>
-#include <string>
 #include <exception>
+#include <iostream>
+#include <string>
+#include <vector>
 
 #include <rapidjson/document.h>
 #include <rapidjson/istreamwrapper.h>
 #include <rapidjson/ostreamwrapper.h>
 #include <rapidjson/prettywriter.h>
+#include <rapidjson/stream.h>
 
 // easy_serialize is a library and a client usage pattern with the following goals:
 //
@@ -63,7 +63,7 @@
 //
 //        template<class Archive>
 //        void serialize(Archive& ar) {
-//            ar.doInt(i, "i");
+//            ar.ez("i", i);
 //        }
 //    };
 //
@@ -82,10 +82,10 @@
 //        template<class Archive>
 //        void serialize(Archive& ar)
 //        {
-//            ar.doBool(b, "b");
+//            ar.ez(b, "b");
 //            ar.doDouble(d, "d");
 //            ar.doEnum(et, ENUM_THING_N, "et");
-//            ar.doObject(o, "o");
+//            ar.ezObject("o", o);
 //            ar.doString(s, "s");
 //            ar.doVecInt(v_i, "v_i");
 //            ar.doVecObject(v_o, "v_o");
@@ -159,49 +159,53 @@ namespace easy_serialize
     class JsonReaderArchive
     {
     public:
-        JsonReaderArchive(std::istream& is);
+        // JsonReaderArchive(std::istream &is);
+        explicit JsonReaderArchive(std::string s);
         ~JsonReaderArchive();
 
-        void doBool(bool&, const char* key);
-        void doDouble(double&, const char* key);
-        template<typename T>
-        void doEnum(T&, T maxEnum, const char* key);
-        void doInt(int& i, const char* key);
-        template<typename T>
-        void doObject(T& t, const char* key);
-        void doString(std::string&, const char* key);
-        void doVecFloat(std::vector<int>&, const char* key);
-        void doVecInt(std::vector<int>&, const char* key);
-        template<typename T>
-        void doVecObject(std::vector<T>&, const char* key);
+        void ez(const char *key, bool &);
+        void doDouble(double &, const char *key);
+        void ez(const char *key, int &i);
+        void doString(std::string &, const char *key);
+        void doVecFloat(std::vector<int> &, const char *key);
+        void doVecInt(std::vector<int> &, const char *key);
+
+        template <typename T>
+        void ezObject(const char *key, T &t);
+        template <typename T>
+        void doEnum(T &, T maxEnum, const char *key);
+        template <typename T>
+        void doVecObject(std::vector<T> &, const char *key);
 
         // TODO:
-        //void doVecDouble(std::vector<int>&, const char* key);
-        //void doVecEnum(std::vector<T>&, const char* key);
-        //void doVecString(std::vector<std::string>&, const char* key);
+        // void doVecDouble(std::vector<int>&, const char* key);
+        // void doVecEnum(std::vector<T>&, const char* key);
+        // void doVecString(std::vector<std::string>&, const char* key);
 
-        JsonReaderArchive(const JsonReaderArchive&) = delete;
-        JsonReaderArchive& operator=(const JsonReaderArchive&) = delete;
+        JsonReaderArchive(const JsonReaderArchive &) = delete;
+        JsonReaderArchive &operator=(const JsonReaderArchive &) = delete;
 
     private:
+        void checkKey(const char *key);
 
-        void checkKey(const char* key);
-
-        rapidjson::IStreamWrapper _isw;
+        const std::string json_string;
+        // rapidjson::EncodedInputStream<UTF8<>, MemoryStream> _isw;
         std::vector<rapidjson::Value> _stack;
         rapidjson::Document _d;
     };
 
-    std::string buildErrorKey(const char* key);
+    std::string buildErrorKey(const char *key);
     std::string buildErrorIndex(unsigned key);
-    std::string buildErrorMessage(const char* key, const std::string& message);
+    std::string buildErrorMessage(const char *key, const std::string &message);
 
-    template<typename T>
-    void getFromEnum(T& t, T maxEnum, const std::string& s, const char* key)
+    template <typename T>
+    void getFromEnum(T &t, T maxEnum, const std::string &s, const char *key)
     {
-        for (int i = 0; i < maxEnum; ++i) {
+        for (int i = 0; i < maxEnum; ++i)
+        {
             T e = static_cast<T>(i);
-            if (s == toString(e)) {
+            if (s == toString(e))
+            {
                 t = e;
                 return;
             }
@@ -210,53 +214,62 @@ namespace easy_serialize
         throw std::runtime_error(buildErrorKey(key) + error);
     }
 
-    template<typename T>
-    void JsonReaderArchive::doEnum(T& e, T maxEnum, const char* key)
+    template <typename T>
+    void JsonReaderArchive::doEnum(T &e, T maxEnum, const char *key)
     {
         std::string s;
         doString(s, key);
         getFromEnum(e, maxEnum, s, key);
     }
 
-    template<typename T>
-    void JsonReaderArchive::doObject(T& t, const char* key)
+    template <typename T>
+    void JsonReaderArchive::ezObject(const char *key, T &t)
     {
-        try {
-            if (!_stack.back().HasMember(key)) {
+        try
+        {
+            if (!_stack.back().HasMember(key))
+            {
                 throw std::runtime_error(" key doesn't exist");
             }
-            if (!_stack.back()[key].IsObject()) {
+            if (!_stack.back()[key].IsObject())
+            {
                 throw std::runtime_error(" expected an object");
             }
             _stack.push_back(_stack.back()[key].GetObject());
             t.serialize(*this);
             _stack.pop_back();
         }
-        catch (const std::exception& ex) {
+        catch (const std::exception &ex)
+        {
             const std::string error = buildErrorKey(key) + ex.what();
             throw std::runtime_error(error);
         }
     }
 
-    template<class T>
-    void JsonReaderArchive::doVecObject(std::vector<T>& v_o, const char* key)
+    template <class T>
+    void JsonReaderArchive::doVecObject(std::vector<T> &v_o, const char *key)
     {
-        try {
-            if (!_stack.back().HasMember(key)) {
+        try
+        {
+            if (!_stack.back().HasMember(key))
+            {
                 throw std::runtime_error(" key doesn't exist");
             }
-            rapidjson::Value& value = _stack.back()[key];
+            rapidjson::Value &value = _stack.back()[key];
             if (!value.IsArray())
             {
                 throw std::runtime_error(" expected an array of objects");
             }
-            
+
             v_o.clear();
             v_o.reserve(value.Size());
 
-            for (rapidjson::SizeType i = 0; i < value.Size(); ++i) {
-                try {
-                    if (!value[i].IsObject()) {
+            for (rapidjson::SizeType i = 0; i < value.Size(); ++i)
+            {
+                try
+                {
+                    if (!value[i].IsObject())
+                    {
                         throw std::runtime_error(" expected an object");
                     }
                     T o;
@@ -265,14 +278,15 @@ namespace easy_serialize
                     _stack.pop_back();
                     v_o.push_back(o);
                 }
-                catch (const std::exception& ex) {
+                catch (const std::exception &ex)
+                {
                     const std::string error = buildErrorIndex(i) + ex.what();
                     throw std::runtime_error(error);
                 }
             }
-            
         }
-        catch (const std::exception& ex) {
+        catch (const std::exception &ex)
+        {
             const std::string error = buildErrorKey(key) + ex.what();
             throw std::runtime_error(error);
         }
@@ -281,71 +295,102 @@ namespace easy_serialize
     class JsonWriterArchive
     {
     public:
-        JsonWriterArchive(std::ostream&);
+        JsonWriterArchive(std::ostream &, bool);
         ~JsonWriterArchive();
 
-        void doBool(bool&, const char* key);
-        void doDouble(double&, const char* key);
-        template<typename T>
-        void doEnum(T& t, T maxEnum, const char* key);
-        void doInt(int& i, const char* key);
-        template<typename T>
-        void doObject(T& t, const char* key);
-        void doString(std::string&, const char* key);
-        void doVecFloat(std::vector<float>&, const char* key);
-        void doVecInt(std::vector<int>&, const char* key);
-        template<typename T>
-        void doVecObject(std::vector<T>&, const char* key);
+        void ez(const char *key, bool &);
+        void doDouble(double &, const char *key);
+        template <typename T>
+        void doEnum(T &t, T maxEnum, const char *key);
+        void ez(const char *key, int &);
+        template <typename T>
+        void ezObject(const char *key, T &t);
+        void doString(std::string &, const char *key);
+        void doVecFloat(std::vector<float> &, const char *key);
+        void doVecInt(std::vector<int> &, const char *key);
+        template <typename T>
+        void doVecObject(std::vector<T> &, const char *key);
 
-        JsonWriterArchive(const JsonWriterArchive&) = delete;
-        JsonWriterArchive& operator=(const JsonWriterArchive&) = delete;
+        template <typename T>
+        void doVector(std::vector<T> &v_o);
+
+        JsonWriterArchive(const JsonWriterArchive &) = delete;
+        JsonWriterArchive &operator=(const JsonWriterArchive &) = delete;
 
     private:
-
+        const bool _is_object;
         rapidjson::OStreamWrapper _osw;
         rapidjson::PrettyWriter<rapidjson::OStreamWrapper> _writer;
     };
 
-    template<typename T>
-    void JsonWriterArchive::doEnum(T& t, T /*maxEnum*/, const char* key)
+    template <typename T>
+    void JsonWriterArchive::doEnum(T &t, T /*maxEnum*/, const char *key)
     {
         _writer.Key(key);
         _writer.String(toString(t));
     }
 
-    template<typename T>
-    void JsonWriterArchive::doObject(T& o, const char* key)
+    template <typename T>
+    void JsonWriterArchive::ezObject(const char *key, T &o)
     {
         _writer.Key(key);
         _writer.StartObject();
-    
+
         o.serialize(*this);
-    
+
         _writer.EndObject();
     }
 
-    template<typename T>
-    void JsonWriterArchive::doVecObject(std::vector<T>& v_o, const char* key)
+    template <typename T>
+    void JsonWriterArchive::doVector(std::vector<T> &v_o)
     {
-        _writer.Key(key);
         _writer.StartArray();
-        for (auto& o : v_o) {
+        for (auto &o : v_o)
+        {
             _writer.StartObject();
             o.serialize(*this);
             _writer.EndObject();
         }
         _writer.EndArray();
     }
-
-    template<typename T>
-    void to_json_stream(T obj, std::ostream& os)
+    template <typename T>
+    void JsonWriterArchive::doVecObject(std::vector<T> &v_o, const char *key)
     {
-        JsonWriterArchive a(os);
+        _writer.Key(key);
+        doVector(v_o);
+    }
+
+    template <typename T>
+    void to_json_stream(std::vector<T> &v, std::ostream &os)
+    {
+        JsonWriterArchive a(os, false);
+        a.doVector(v);
+    }
+
+    template <typename T>
+    void to_json_stream(T &obj, std::ostream &os)
+    {
+        JsonWriterArchive a(os, true);
         obj.serialize(a);
     }
 
-    template<typename T>
-    void from_json_stream(T& obj, std::istream& is)
+    template <typename T>
+    void to_json_stream(const T &obj, std::ostream &os)
+    {
+        // Muhaha. const_cast here saves a copy.
+        T &not_const_obj = const_cast<T &>(obj);
+        to_json_stream(not_const_obj, os);
+    }
+
+    template <typename T>
+    void from_json_stream(std::vector<T> &v, std::istream &is)
+    {
+        JsonReaderArchive a(is);
+        doVector(v);
+    }
+
+    template <typename T>
+    void from_json_stream(T &obj, std::string is)
     {
         JsonReaderArchive a(is);
         obj.serialize(a);

@@ -1,140 +1,248 @@
 # easy_serialize
 
-easy_serialize is a C++11 library and a client usage pattern with the following goals:
+easy_serialize is an easy to use, header-only C++11 library and a client usage pattern.
 
-1. Easy to use for reading/writing JSON into C++ data structures.
-2. No virtual inheritance.
-3. Excellent error messages while reading/writing data formats.
-4. Versioning support. Fields/objects can be added without bumping the minimum supported version.
+There are many c++ serializers/parsers for json, xml, binary, etc formats. This library is for those that want JSON to/from their C++ objects without much fuss.
 
-To achieve these goals there are some constraints:
+# Easy to write some JSON
 
-* Every type used must be called out by the Archive API. Currently the only stl container supported is std::vector.
-* All classes in the scheme must implement a serialize() template method.
-* Floating point numbers get their own category:
-  * Only double is supported for now (not float).
-  * Floating point numbers can't be NaN, +inf, or -inf.
-  * Floating point numbers print nicely to strings (e.g 1.1 instead of 1.999999999...). This means that floating point numbers aren't preserved exactly in a to/from JSON operation, and get filtered by what can display in a decimal string.
+    #include <easy_serialize/json_writer.h>
 
-Example client code:
-
-    #include <string>
-    #include <vector>
-    #include <easy_serialize/easy_serialize.h>
- 
-    enum EnumThing {
-        ENUM_THING_0,
-        ENUM_THING_1,
-        ENUM_THING_N,
+    enum class OrangeJuicePulpLevel {
+        Low,
+        Medium,
+        High,
+        N
     };
- 
-    const char* toString(EnumThing et)
+
+    const char* to_string(OrangeJuicePulpLevel level)
     {
-        switch (et) {
-        case ENUM_THING_0: return "enum thing 0";
-        case ENUM_THING_1: return "enum thing 1";
-        case ENUM_THING_N: break;
+        switch (level) {
+        case Low: return "low";
+        case Medium: return "medium";
+        case High: return "high";
+        case N: break;
         }
         return "";
     }
- 
-    class B
+
+    class O
     {
-    public:
-        B() : i(0) {}
-        B(int i) : i(i) {}
+      public:
         int i;
- 
-        template<class Archive>
-        void serialize(Archive& ar) {
-            ar.doInt(i, "i");
-        }
-    };
- 
-    class A
-    {
-    public:
- 
-        bool b;
-        double d;
-        EnumThing et;
-        B o;
-        std::vector<B> v_o;
-        std::string s;
-        std::vector<int> v_i;
- 
+        int64_t i2;
         template<class Archive>
         void serialize(Archive& ar)
         {
-            ar.doBool(b, "b");
-            ar.doDouble(d, "d");
-            ar.doEnum(et, ENUM_THING_N, "et");
-            ar.doObject(o, "o");
-            ar.doString(s, "s");
-            ar.doVecInt(v_i, "v_i");
-            ar.doVecObject(v_o, "v_o");
+            ar.ez("i", i);
+            ar.ez("i2", i2);
         }
     };
- 
+
+    class A
+    {
+    public:
+
+        bool b;
+        double d;
+        std::string s;
+        OrangeJuicePulpLevel pulp_level;
+        O o;
+        std::vector<O> v_o;
+
+        // This single method is all you need to read and write.
+        template<class Archive>
+        void serialize(Archive& ar)
+        {
+            ar.ez("b", b);
+            ar.ez("d", d);
+            ar.ez("s", s);
+            ar.ez_enum("pulp level", OrangeJuicePulpLevel::N, pulp_level);
+            ar.ez_obj("o", o);
+            ar.ez_vec("v_o", v_o);
+        }
+    };
+
     int main(int, char*[])
     {
-        A a;
-        a.b = true;
-        a.d = 3.14159265358979;
-        a.et = ENUM_THING_1;
-        a.o.i = 120;
-        a.v_o.emplace_back(1);
-        a.v_o.emplace_back(2);
-        a.s = "hello world";
-        a.v_i = {7,8,9};
-        try {
-            easy_serialize::to_json_stream(a, std::cout);
-        }
-        catch (const std::exception& ex) {
-            std::cerr << ex.what();
-        }
-        return 0;
+        A a { true, 0.1, "grr", OrangeJuicePulpLevel::medium, {1, 2}, {{3,4}, {5,6}}};
+        std::cout << to_json_string(A);
     }
- 
+
     ... prints this JSON ...
- 
+
     {
       "b": true,
-      "d": 3.14159265358979,
-      "et": "enum thing 1",
+      "d": 0.1,
+      "pulp level": "medium",
+      "s": "grr",
       "o": {
-        "i": 120
+        "i": 1,
+        "i2": 2
       },
-      "s": "hello world",
-      "v_i": [
-        7,
-        8,
-        9
-      ],
       "v_o": [
         {
-          "i": 1
+          "i": 3,
+          "i2": 4
         },
         {
-          "i": 2
+          "i": 5,
+          "i2": 6
         }
       ]
     }
- 
-    ... likewise a call to easy_serialize::from_json_stream(...) will
-    populate data structures from JSON ...
- 
-    std::ifstream ifs(filename);
-    if (!ifs.open) {
-        std::cerr << "Couldn't open " << filename << std::endl;
-        return;
+
+# Easy to read some JSON
+
+    With the same code from above you can read json into your objects.
+
+    #include <easy_serialize/json_reader.h>
+    #include <iostream>
+
+    int main(int, char*[])
+    {
+        const std::string json_string = R""""(
+        {
+          "b": false,
+          "d": 0.2,
+          "pulp level": "low",
+          "s": "more grr",
+          "o": {
+            "i": 7,
+            "i2": 8
+          },
+          "v_o": [
+            {
+              "i": 9,
+              "i2": 10 
+            },
+            {
+              "i": 11,
+              "i2": 12 
+            }
+          ]
+        }
+        """");
+
+        A a;
+        const auto status = easy_serialize::from_json_string(json_string, a);
+        if (status) {
+            // Object "a" is populated with json. Do something with it...
+        }
+        else {
+            std::cerr << a.error_message << "\n";
+        }
+
+        return 0;
     }
-    A a;
-    try {
-        from_json_stream(a, ifs);
+
+# Easy to find errors in your JSON
+
+Let's say one of the nested JSON value was the wrong type. The program above would produce this error message...
+
+    ["v_o"][1]["i2"] expected an int64
+
+... or one of the keys didn't exist ...
+
+    ["d"] key doesn't exist
+
+... or an enum value didn't exist ...
+
+    ["pulp level"] bad enum value: "just the pulp"
+
+TODO: The default implementation uses rapidjson for UTF-8 validation and parse errors. If one of these errors happens it tells you "invalid encoding in string" or "Missing a closing quotation mark in string." but doesn't give you an exact location.
+
+# Class versioning
+
+Use the archive class_version(int) and object_version_supported(int) functions for versioning. 
+
+    class A
+    {
+    public:
+
+        // In original version (version 0 implied)
+        int i0;
+
+        // Added in version 1
+        int i1;
+        std::string s;
+
+        // Added in version 2
+        int i2;
+
+        template<class Archive>
+        void serialize(Archive& ar)
+        {
+            ar.class_version(2) // Enables class versioning.
+            ar.ez("i0", i0);
+
+            ar.object_version_supported(1)
+            ar.ez("i1", i1);
+            ar.ez("s", s);
+
+            ar.object_version_supported(2)
+            ar.ez("i2", i2);
+        }
+    };
+
+For json archivers this adds a "_objver": int key/value pair to the json if the class version is > 0.
+
+    {
+      "_objver": 2,
+      "i1": 0,
+      "i2": 0,
+      "s": "",
+      "i3": 0
     }
-    catch (const std::exception& ex) {
-        std::cerr << ex.what();
+
+This way older objects such as these can still be read without a missing key error:
+
+    {
+      "_objver": 0,
+      "i1": 0
     }
- 
- 
+
+    {
+      "_objver": 1,
+      "i1": 0,
+      "i2": 0,
+      "s": ""
+    }
+
+You can only add members with a version change. A possible modification in the future would be to add a function that can remember the deserialized object version.
+
+For binary archivers (that don't exist yet) it will include an integer version field.
+
+# Adding another archiver
+
+Currently there is only a JSON archiver based on rapidjson.
+
+Possible future archivers:
+* Binary (using variable-length numbers similar to protocol buffers).
+* Optimized json reader that requires keys to be in the order defined by their classes.
+* Equality operator (For floating point numbers, NaN == NaN is true).
+
+Use the rapidjson implementation as a guide.
+
+# Type support
+
+The following types are supported:
+* bool
+* int8_t
+* int16_t
+* int32_t
+* int64_t
+* uint8_t
+* uint16_t
+* uint32_t
+* uint64_t
+* float (supports NaN, Inf, Infinity, -Inf, and -Infinity)
+* double (supports NaN, Inf, Infinity, -Inf, and -Infinity)
+* std::string
+* enum and enum classes with a to_string function.
+* classes/structs with a serialize method.
+* std::vector
+
+Not supported:
+* pointers
+* classes/structs without a serialize method.
