@@ -1,8 +1,6 @@
 # easy_serialize
 
-easy_serialize is an easy to use, header-only C++11 library and a client usage pattern.
-
-There are many c++ serializers/parsers for json, xml, binary, etc formats. This library is for those that want JSON to/from their C++ objects without much fuss.
+easy_serialize is a header-only C++11 library for those that want their C++ objects to/from JSON without much fuss. (And possibly other data formats in the future.)
 
 # Easy to write some JSON
 
@@ -12,9 +10,10 @@ There are many c++ serializers/parsers for json, xml, binary, etc formats. This 
         Low,
         Medium,
         High,
-        N
+        N // One past last valid value. (Have to have this.)
     };
 
+    // Client has to provide to_string() function for enum values.
     const char* to_string(OrangeJuicePulpLevel level)
     {
         switch (level) {
@@ -26,11 +25,13 @@ There are many c++ serializers/parsers for json, xml, binary, etc formats. This 
         return "";
     }
 
-    class O
+    class Y
     {
       public:
         int i;
         int64_t i2;
+
+        // Client adds this method. Handles reading and writing.
         template<class Archive>
         void serialize(Archive& ar)
         {
@@ -39,7 +40,7 @@ There are many c++ serializers/parsers for json, xml, binary, etc formats. This 
         }
     };
 
-    class A
+    class Z
     {
     public:
 
@@ -47,40 +48,40 @@ There are many c++ serializers/parsers for json, xml, binary, etc formats. This 
         double d;
         std::string s;
         OrangeJuicePulpLevel pulp_level;
-        O o;
-        std::vector<O> v_o;
+        Y y;
+        std::vector<Y> v_y;
 
-        // This single method is all you need to read and write.
+        // Client adds this method. Handles reading and writing.
         template<class Archive>
         void serialize(Archive& ar)
         {
             ar.ez("b", b);
             ar.ez("d", d);
             ar.ez("s", s);
-            ar.ez_enum("pulp level", OrangeJuicePulpLevel::N, pulp_level);
-            ar.ez_obj("o", o);
-            ar.ez_vec("v_o", v_o);
+            ar.ez_enum("pulp level", pulp_level, OrangeJuicePulpLevel::N);
+            ar.ez_obj("y", y);
+            ar.ez_vec("v_y", v_y);
         }
     };
 
     int main(int, char*[])
     {
-        A a { true, 0.1, "grr", OrangeJuicePulpLevel::medium, {1, 2}, {{3,4}, {5,6}}};
-        std::cout << to_json_string(A);
+        Z z { true, 0.1, "grr", OrangeJuicePulpLevel::medium, {1, 2}, {{3,4}, {5,6}}};
+        std::cout << to_json_string(z);
     }
 
-    ... prints this JSON ...
+    ... prints this JSON (the default indent level is 2 spaces) ...
 
     {
       "b": true,
       "d": 0.1,
       "pulp level": "medium",
       "s": "grr",
-      "o": {
+      "y": {
         "i": 1,
         "i2": 2
       },
-      "v_o": [
+      "v_y": [
         {
           "i": 3,
           "i2": 4
@@ -107,11 +108,11 @@ There are many c++ serializers/parsers for json, xml, binary, etc formats. This 
           "d": 0.2,
           "pulp level": "low",
           "s": "more grr",
-          "o": {
+          "y": {
             "i": 7,
             "i2": 8
           },
-          "v_o": [
+          "v_y": [
             {
               "i": 9,
               "i2": 10 
@@ -124,13 +125,13 @@ There are many c++ serializers/parsers for json, xml, binary, etc formats. This 
         }
         """");
 
-        A a;
-        const auto status = easy_serialize::from_json_string(json_string, a);
+        Z z;
+        const auto status = easy_serialize::from_json_string(json_string, z);
         if (status) {
-            // Object "a" is populated with json. Do something with it...
+            // Object "z" is populated with json. Do something with it...
         }
         else {
-            std::cerr << a.error_message << "\n";
+            std::cerr << status.error_message << "\n";
         }
 
         return 0;
@@ -138,11 +139,11 @@ There are many c++ serializers/parsers for json, xml, binary, etc formats. This 
 
 # Easy to find errors in your JSON
 
-Let's say one of the nested JSON value was the wrong type. The program above would produce this error message...
+Let's say one of the nested JSON values above was the wrong type. The program above would produce this error message...
 
-    ["v_o"][1]["i2"] expected an int64
+    ["v_y"][1]["i2"] expected an int64
 
-... or one of the keys didn't exist ...
+... or the "d" key didn't exist ...
 
     ["d"] key doesn't exist
 
@@ -150,13 +151,15 @@ Let's say one of the nested JSON value was the wrong type. The program above wou
 
     ["pulp level"] bad enum value: "just the pulp"
 
-TODO: The default implementation uses rapidjson for UTF-8 validation and parse errors. If one of these errors happens it tells you "invalid encoding in string" or "Missing a closing quotation mark in string." but doesn't give you an exact location.
+... and many others.
+
+TODO: The default implementation uses rapidjson for UTF-8 validation and parse errors. If one of these errors happens it gives you error messages like "invalid encoding in string" or "Missing a closing quotation mark in string.", but doesn't give you an exact location, which would be nice.
 
 # Class versioning
 
 Use the archive class_version(int) and object_version_supported(int) functions for versioning. 
 
-    class A
+    class W
     {
     public:
 
@@ -209,7 +212,7 @@ This way older objects such as these can still be read without a missing key err
       "s": ""
     }
 
-You can only add members with a version change. A possible modification in the future would be to add a function that can remember the deserialized object version.
+You can only add members with a version change. A possible modification in the future would be to add a function that can remember the deserialized object version so the client could do further processing.
 
 For binary archivers (that don't exist yet) it will include an integer version field.
 
@@ -219,7 +222,7 @@ Currently there is only a JSON archiver based on rapidjson.
 
 Possible future archivers:
 * Binary (using variable-length numbers similar to protocol buffers).
-* Optimized json reader that requires keys to be in the order defined by their classes.
+* Customized json archiver tailored to this scheme (rather than rapidjson). It could have better performance and error reporting.
 * Equality operator (For floating point numbers, NaN == NaN is true).
 
 Use the rapidjson implementation as a guide.
@@ -236,7 +239,6 @@ The following types are supported:
 * uint16_t
 * uint32_t
 * uint64_t
-* float (supports NaN, Inf, Infinity, -Inf, and -Infinity)
 * double (supports NaN, Inf, Infinity, -Inf, and -Infinity)
 * std::string
 * enum and enum classes with a to_string function.

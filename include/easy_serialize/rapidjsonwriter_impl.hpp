@@ -1,12 +1,10 @@
 #pragma once
 
 #include "easy_serialize_status.hpp"
+#include "json_indent.hpp"
 
-#include <rapidjson/document.h>
-#include <rapidjson/fwd.h>
-#include <rapidjson/istreamwrapper.h>
-#include <rapidjson/ostreamwrapper.h>
 #include <rapidjson/prettywriter.h>
+#include <rapidjson/stringbuffer.h>
 
 #include <cstdint>
 #include <string>
@@ -20,139 +18,281 @@ namespace easy_serialize
         class RapidJsonWriterArchive
         {
         public:
-            RapidJsonWriterArchive(std::ostream &, bool);
-            ~RapidJsonWriterArchive();
+            explicit RapidJsonWriterArchive(rapidjson::PrettyWriter<rapidjson::StringBuffer> &writer_) : _writer(writer_) {}
 
-            void version(int);
-            void ez(const char *key, bool &);
-            void ez(const char *key, int8_t &);
-            void ez(const char *key, int16_t &);
-            void ez(const char *key, int32_t &);
-            void ez(const char *key, int64_t &);
-            void ez(const char *key, uint8_t &);
-            void ez(const char *key, uint16_t &);
-            void ez(const char *key, uint32_t &);
-            void ez(const char *key, uint64_t &);
-            void ez(const char *key, float &);
-            void ez(const char *key, double &);
-            void ez(const char *key, std::string &);
+            void class_version(int class_version)
+            {
+                _writer.Key("_objver");
+                _writer.Int(class_version);
+            }
+            void object_version_supported(int /* supported_object_version */)
+            {
+                // Writers don't care.
+            }
+            void ez(const char *key, bool &b)
+            {
+                _writer.Key(key);
+                _ez(b);
+            };
+            void ez(const char *key, int8_t &i)
+            {
+                _writer.Key(key);
+                _ez(i);
+            }
+            void ez(const char *key, int16_t &i)
+            {
+                _writer.Key(key);
+                _ez(i);
+            }
+            void ez(const char *key, int32_t &i)
+            {
+                _writer.Key(key);
+                _ez(i);
+            }
+            void ez(const char *key, int64_t &i)
+            {
+                _writer.Key(key);
+                _ez(i);
+            }
+            void ez(const char *key, uint8_t &u)
+            {
+                _writer.Key(key);
+                _ez(u);
+            }
+            void ez(const char *key, uint16_t &u)
+            {
+                _writer.Key(key);
+                _ez(u);
+            }
+            void ez(const char *key, uint32_t &u)
+            {
+                _writer.Key(key);
+                _ez(u);
+            }
+            void ez(const char *key, uint64_t &u)
+            {
+                _writer.Key(key);
+                _ez(u);
+            }
+
+            // Rapidjson doesn't support "float" (only "double"), so leave this out.
+            // void ez(const char *key, float &f)
+
+            void ez(const char *key, double &d)
+            {
+                _writer.Key(key);
+                _ez(d);
+            }
+            void ez(const char *key, std::string &s)
+            {
+                _writer.Key(key);
+                _ez(s);
+            }
             template <typename T>
-            void ez_enum(const char *key, T &, T enum_value_N);
+            void ez_enum(const char *key, T &e, T /* enum_value_N */)
+            {
+                _writer.Key(key);
+                _ez_enum(e);
+            }
             template <typename T>
-            void ez_object(const char *key, T &t);
+            void ez_object(const char *key, T &o)
+            {
+                _writer.Key(key);
+                _ez_object(o);
+            }
             template <typename T>
-            void ez_vector(const char *key, std::vector<T> &);
+            void ez_vector_objects(const char *key, std::vector<T> &v)
+            {
+                _writer.Key(key);
+                _ez_vector_objects(v);
+            }
+            template <typename T>
+            void ez_vector_enums(const char *key, std::vector<T> &v)
+            {
+                _writer.Key(key);
+                _ez_vector_enums(v);
+            }
+            template <typename T>
+            void ez_vector(const char *key, std::vector<T> &v)
+            {
+                _writer.Key(key);
+                _ez_vector(v);
+            }
 
             RapidJsonWriterArchive(const RapidJsonWriterArchive &) = delete;
             RapidJsonWriterArchive &operator=(const RapidJsonWriterArchive &) = delete;
 
-        private:
-            void _ez(bool &);
-            void _ez(int8_t &);
-            void _ez(int16_t &);
-            void _ez(int32_t &);
-            void _ez(int64_t &);
-            void _ez(uint8_t &);
-            void _ez(uint16_t &);
-            void _ez(uint32_t &);
-            void _ez(uint64_t &);
-            void _ez(float &);
-            void _ez(double &);
-            void _ez(std::string &);
+            template <typename T>
+            void _ez_object(T &o)
+            {
+                _writer.StartObject();
+                o.serialize(*this);
+                _writer.EndObject();
+            }
+            template <typename T>
+            void _ez_enum(T &e)
+            {
+                _writer.String(to_string(e));
+            }
+            template <typename T>
+            void _ez_vector_objects(std::vector<T> &v)
+            {
+                _writer.StartArray();
+                for (auto &o : v)
+                {
+                    _writer.StartObject();
+                    o.serialize(*this);
+                    _writer.EndObject();
+                }
+                _writer.EndArray();
+            }
+            template <typename T>
+            void _ez_vector_enums(std::vector<T> &v)
+            {
+                _writer.StartArray();
+                for (auto &e : v)
+                {
+                    _ez_enum(e);
+                }
+                _writer.EndArray();
+            }
+            template <typename T>
+            void _ez_vector(std::vector<T> &v)
+            {
+                _writer.StartArray();
+                for (auto &t : v)
+                {
+                    _ez(t);
+                }
+                _writer.EndArray();
+            }
 
-            const bool _is_object;
-            rapidjson::OStreamWrapper _osw;
-            rapidjson::PrettyWriter<rapidjson::OStreamWrapper> _writer;
+        private:
+            void _ez(bool b)
+            {
+                _writer.Bool(b);
+            }
+            void _ez(int8_t i)
+            {
+                _writer.Int(i);
+            }
+            void _ez(int16_t i)
+            {
+                _writer.Int(i);
+            }
+            void _ez(int32_t i)
+            {
+                _writer.Int(i);
+            }
+            void _ez(int64_t i)
+            {
+                _writer.Int64(i);
+            }
+            void _ez(uint8_t u)
+            {
+                _writer.Uint(u);
+            }
+            void _ez(uint16_t u)
+            {
+                _writer.Uint(u);
+            }
+            void _ez(uint32_t u)
+            {
+                _writer.Uint(u);
+            }
+            void _ez(uint64_t u)
+            {
+                _writer.Uint64(u);
+            }
+            void _ez(double d)
+            {
+                _writer.Double(d);
+            }
+            void _ez(const std::string &s)
+            {
+                _writer.String(s);
+            }
+
+            rapidjson::PrettyWriter<rapidjson::StringBuffer> &_writer;
         };
+
+        inline unsigned get_num_spaces(JsonIndent json_indent)
+        {
+            switch (json_indent)
+            {
+            case JsonIndent::compact:
+                break;
+            case JsonIndent::one_space:
+                return 1;
+            case JsonIndent::two_spaces:
+                return 2;
+            case JsonIndent::three_spaces:
+                return 3;
+            case JsonIndent::four_spaces:
+                return 4;
+            }
+            return 0;
+        }
 
         // Create UTF-8 JSON from object in memory buffer.
         //
         // \param string_buffer: rapidjson StringBuffer output stream buffer.
         // \param obj: object to json
-        // \param num_indent_spaces: Number of spaces to indent. If 0, make compact (no newlines).
+        // \param json_indent: json indent formatting
         template <typename T>
-        void to_json_buffer(rapidjson::StringBuffer &string_buffer, T &obj, int num_indent_spaces = 2)
+        void to_json_buffer(rapidjson::StringBuffer &string_buffer, T &obj,
+                            JsonIndent json_indent = JsonIndent::two_spaces)
         {
+            rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(string_buffer);
+            RapidJsonWriterArchive a(writer);
+            writer.SetIndent(' ', get_num_spaces(json_indent));
+            a._ez_object(obj);
         }
 
         // Create UTF-8 JSON from vector of objects in memory buffer.
         //
         // \param string_buffer: rapidjson::StringBuffer
+        // \param v: vector of objects
+        // \param num_indent_spaces: Number of spaces to indent. If 0, make compact (no newlines).
+        template <typename T>
+        void to_json_buffer_vector_objects(rapidjson::StringBuffer &string_buffer, std::vector<T> &v,
+                                           JsonIndent json_indent = JsonIndent::two_spaces)
+        {
+            rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(string_buffer);
+            writer.SetIndent(' ', get_num_spaces(json_indent));
+            RapidJsonWriterArchive a(writer);
+            a._ez_vector_objects(v);
+        }
+
+        // Create UTF-8 JSON from vector of enums in memory buffer.
+        //
+        // \param string_buffer: rapidjson::StringBuffer
         // \param obj: object to json
         // \param num_indent_spaces: Number of spaces to indent. If 0, make compact (no newlines).
         template <typename T>
-        void to_json_buffer(rapidjson::StringBuffer &string_buffer, std::vector<T> &v, int num_indent_spaces = 2)
+        void to_json_buffer_vector_enums(rapidjson::StringBuffer &string_buffer, std::vector<T> &v,
+                                         JsonIndent json_indent = JsonIndent::two_spaces)
         {
+            rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(string_buffer);
+            writer.SetIndent(' ', get_num_spaces(json_indent));
+            RapidJsonWriterArchive a(writer);
+            a._ez_vector_enums(v);
         }
+
+        // Create UTF-8 JSON from vector of supported fundamental types in memory buffer.
+        //
+        // \param string_buffer: rapidjson::StringBuffer
+        // \param obj: object to json
+        // \param num_indent_spaces: Number of spaces to indent. If 0, make compact (no newlines).
+        template <typename T>
+        void to_json_buffer_vector(rapidjson::StringBuffer &string_buffer, std::vector<T> &v,
+                                   JsonIndent json_indent = JsonIndent::two_spaces)
+        {
+            rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(string_buffer);
+            writer.SetIndent(' ', get_num_spaces(json_indent));
+            RapidJsonWriterArchive a(writer);
+            a._ez_vector(v);
+        }
+
     } // namespace rapidjson_impl
-
-    //-------- for easy_serialize/json_writer.h -----------------------------
-    // # include <string>
-    // # include <vector>
-
-    // Write UTF-8 JSON to file.
-    //
-    // \param filename: "path/to/filename.json"
-    // \param obj: object to write
-    // \param num_indent_spaces: Number of spaces to indent. If 0, make compact (no newlines).
-    template <typename T>
-    EasySerializeStatus to_json_file(const std::string &filename, T &obj, int num_indent_spaces = 2)
-    {
-        rapidjson::StringBuffer string_buffer;
-        rapidjson_impl::to_json_buffer(string_buffer, obj, num_indent_spaces);
-        EasySerializeStatus status;
-        File *fp = fopen(filename.c_str());
-        // TODO: file handling stuff
-        fclose(fp);
-        return status;
-    }
-
-    // Write object UTF-8 JSON to file, const ref version of function.
-    //
-    // const_cast away the const so we can use the non-const serialize object method. These functions don't
-    // modify the object so no undefined behavior.
-    template <typename T>
-    EasySerializeStatus to_json_file(const std::string &filename, const T &obj, int num_indent_spaces = 2)
-    {
-        return to_json_file(filename, const_cast<T &>(obj), num_indent_spaces);
-    }
-
-    // Write vector of objects UTF-8 JSON to file.
-    //
-    template <typename T>
-    EasySerializeStatus to_json_file(const std::string &filename, std::vector<T> &v, int num_indent_spaces = 2)
-    {
-    }
-    template <typename T>
-    EasySerializeStatus to_json_file(const std::string &filename, const std::vector<T> &v, int num_indent_spaces = 2)
-    {
-        return to_json_file(filename, const_cast<vector<T> &>(v), num_indent_spaces);
-    }
-
-    template <typename T>
-    std::string to_json_string(T &obj, int num_indent_spaces = 2)
-    {
-        rapidjson::StringBuffer string_buffer;
-        rapidjson_impl::to_json_buffer(string_buffer, obj, num_indent_spaces);
-        return std::string(string_buffer.GetString(), string_buffer.GetSize());
-    }
-    template <typename T>
-    std::string to_json_string(const T &obj, int num_indent_spaces = 2)
-    {
-        return to_json_string(const_cast<T &>(obj), num_indent_spaces);
-    }
-
-    template <typename T>
-    std::string to_json_string(std::vector<T> &v, int num_indent_spaces = 2)
-    {
-        rapidjson::StringBuffer string_buffer;
-        rapidjson_impl::to_json_buffer(string_buffer, v, num_indent_spaces);
-        return std::string(string_buffer.GetString(), string_buffer.GetSize());
-    }
-    template <typename T>
-    std::string to_json_string(const std::vector<T> &v, int num_indent_spaces = 2)
-    {
-        return to_json_string(filename, const_cast<vector<T> &>(v), num_indent_spaces);
-    }
-
 } // namespace easy_serialize
