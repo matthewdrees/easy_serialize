@@ -123,6 +123,20 @@ namespace easy_serialize
             RapidJsonWriterArchive &operator=(const RapidJsonWriterArchive &) = delete;
 
             template <typename T>
+            friend void to_json_buffer(rapidjson::StringBuffer &string_buffer, T &obj,
+                                       JsonIndent json_indent);
+            template <typename T>
+            friend void to_json_buffer_vector_objects(rapidjson::StringBuffer &string_buffer, std::vector<T> &v,
+                                                      JsonIndent json_indent);
+            template <typename T>
+            friend void to_json_buffer_vector_enums(rapidjson::StringBuffer &string_buffer, std::vector<T> &v,
+                                                    JsonIndent json_indent);
+            template <typename T>
+            friend void to_json_buffer_vector(rapidjson::StringBuffer &string_buffer, std::vector<T> &v,
+                                              JsonIndent json_indent);
+
+        private:
+            template <typename T>
             void _ez_object(T &o)
             {
                 _writer.StartObject();
@@ -166,8 +180,6 @@ namespace easy_serialize
                 }
                 _writer.EndArray();
             }
-
-        private:
             void _ez(bool b)
             {
                 _writer.Bool(b);
@@ -241,7 +253,7 @@ namespace easy_serialize
         // \param json_indent: json indent formatting
         template <typename T>
         void to_json_buffer(rapidjson::StringBuffer &string_buffer, T &obj,
-                            JsonIndent json_indent = JsonIndent::two_spaces)
+                            JsonIndent json_indent)
         {
             rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(string_buffer);
             RapidJsonWriterArchive a(writer);
@@ -256,7 +268,7 @@ namespace easy_serialize
         // \param num_indent_spaces: Number of spaces to indent. If 0, make compact (no newlines).
         template <typename T>
         void to_json_buffer_vector_objects(rapidjson::StringBuffer &string_buffer, std::vector<T> &v,
-                                           JsonIndent json_indent = JsonIndent::two_spaces)
+                                           JsonIndent json_indent)
         {
             rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(string_buffer);
             writer.SetIndent(' ', get_num_spaces(json_indent));
@@ -271,7 +283,7 @@ namespace easy_serialize
         // \param num_indent_spaces: Number of spaces to indent. If 0, make compact (no newlines).
         template <typename T>
         void to_json_buffer_vector_enums(rapidjson::StringBuffer &string_buffer, std::vector<T> &v,
-                                         JsonIndent json_indent = JsonIndent::two_spaces)
+                                         JsonIndent json_indent)
         {
             rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(string_buffer);
             writer.SetIndent(' ', get_num_spaces(json_indent));
@@ -286,7 +298,7 @@ namespace easy_serialize
         // \param num_indent_spaces: Number of spaces to indent. If 0, make compact (no newlines).
         template <typename T>
         void to_json_buffer_vector(rapidjson::StringBuffer &string_buffer, std::vector<T> &v,
-                                   JsonIndent json_indent = JsonIndent::two_spaces)
+                                   JsonIndent json_indent)
         {
             rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(string_buffer);
             writer.SetIndent(' ', get_num_spaces(json_indent));
