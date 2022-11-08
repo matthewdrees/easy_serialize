@@ -1,3 +1,4 @@
+#include "easy_serialize/json_file_writer.hpp"
 #include "easy_serialize/json_writer.hpp"
 
 #include <iostream>
@@ -83,18 +84,52 @@ public:
 
 int main(int, char *[])
 {
-    Z z{127, -32768, 42, -9, 255, 65535, 196, 327, true, 0.1, "grr", OrangeJuicePulpLevel::Medium, {1, 2}, {{3, 4}, {5, 6}}};
-    std::cout << easy_serialize::to_json_string(z, easy_serialize::JsonIndent::two_spaces) << "\n";
+    Z json_object{127, -32768, 42, -9, 255, 65535, 196, 327, true, 0.1, "grr", OrangeJuicePulpLevel::Medium, {1, 2}, {{3, 4}, {5, 6}}};
+    std::cout << easy_serialize::to_json_string(json_object, easy_serialize::JsonIndent::two_spaces) << "\n";
+    {
+        const auto status = easy_serialize::to_json_file("json_object.out", json_object);
+        if (!status)
+        {
+            std::cerr << status.error_message << "\n";
+        }
+    }
 
-    std::vector<Z> zs;
-    zs.push_back(z);
-    zs.push_back(z);
-    std::cout << easy_serialize::to_json_string_vector_objects(zs, easy_serialize::JsonIndent::two_spaces) << "\n";
+    {
+        std::vector<Z> vector_objects;
+        vector_objects.push_back(json_object);
+        vector_objects.push_back(json_object);
+        std::cout << easy_serialize::to_json_string_vector_objects(vector_objects, easy_serialize::JsonIndent::two_spaces) << "\n";
+        const auto status = easy_serialize::to_json_file_vector_objects("vector_objects.out", vector_objects);
+        if (!status)
+        {
+            std::cerr << status.error_message << "\n";
+        }
+    }
 
-    std::vector<OrangeJuicePulpLevel> pulp_levels = {OrangeJuicePulpLevel::High, OrangeJuicePulpLevel::Medium, OrangeJuicePulpLevel::Low};
-    std::cout << easy_serialize::to_json_string_vector_enums(pulp_levels, easy_serialize::JsonIndent::three_spaces) << "\n";
+    {
+        std::vector<OrangeJuicePulpLevel> pulp_levels = {OrangeJuicePulpLevel::High, OrangeJuicePulpLevel::Medium, OrangeJuicePulpLevel::Low};
+        std::cout << easy_serialize::to_json_string_vector_enums(pulp_levels, easy_serialize::JsonIndent::three_spaces) << "\n";
+        const auto status = easy_serialize::to_json_file_vector_enums("pulp_levels.out", pulp_levels);
+        if (!status)
+        {
+            std::cerr << status.error_message << "\n";
+        }
+    }
 
-    std::vector<int> ints = {3, 1, 4, 2, 8};
-    std::cout << easy_serialize::to_json_string_vector(ints, easy_serialize::JsonIndent::four_spaces) << "\n";
+    {
+        std::vector<int> ints = {3, 1, 4, 2, 8};
+        std::cout << easy_serialize::to_json_string_vector(ints, easy_serialize::JsonIndent::four_spaces) << "\n";
+        const auto status = easy_serialize::to_json_file_vector("ints.out", ints);
+        if (!status)
+        {
+            std::cerr << status.error_message << "\n";
+        }
+        const auto status2 = easy_serialize::to_json_file_vector("imma/crazy/path/that/does/not/exist/json.out", ints);
+        if (status2)
+        {
+            std::cout << "Expected error message: " << status2.error_message << "\n";
+        }
+    }
+
     return 0;
 }
