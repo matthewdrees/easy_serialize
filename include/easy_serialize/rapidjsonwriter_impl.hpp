@@ -29,56 +29,56 @@ namespace easy_serialize
             {
                 // Writers don't care.
             }
-            void ez(const char *key, bool &b)
+            void ez(const char *key, bool b)
             {
                 _writer.Key(key);
                 _ez(b);
             };
-            void ez(const char *key, int8_t &i)
+            void ez(const char *key, int8_t i)
             {
                 _writer.Key(key);
                 _ez(i);
             }
-            void ez(const char *key, int16_t &i)
+            void ez(const char *key, int16_t i)
             {
                 _writer.Key(key);
                 _ez(i);
             }
-            void ez(const char *key, int32_t &i)
+            void ez(const char *key, int32_t i)
             {
                 _writer.Key(key);
                 _ez(i);
             }
-            void ez(const char *key, int64_t &i)
+            void ez(const char *key, int64_t i)
             {
                 _writer.Key(key);
                 _ez(i);
             }
-            void ez(const char *key, uint8_t &u)
+            void ez(const char *key, uint8_t u)
             {
                 _writer.Key(key);
                 _ez(u);
             }
-            void ez(const char *key, uint16_t &u)
+            void ez(const char *key, uint16_t u)
             {
                 _writer.Key(key);
                 _ez(u);
             }
-            void ez(const char *key, uint32_t &u)
+            void ez(const char *key, uint32_t u)
             {
                 _writer.Key(key);
                 _ez(u);
             }
-            void ez(const char *key, uint64_t &u)
+            void ez(const char *key, uint64_t u)
             {
                 _writer.Key(key);
                 _ez(u);
             }
 
             // Rapidjson doesn't support "float" (only "double"), so leave this out.
-            // void ez(const char *key, float &f)
+            // void ez(const char *key, float f)
 
-            void ez(const char *key, double &d)
+            void ez(const char *key, double d)
             {
                 _writer.Key(key);
                 _ez(d);
@@ -89,7 +89,7 @@ namespace easy_serialize
                 _ez(s);
             }
             template <typename T>
-            void ez_enum(const char *key, T &e, T /* enum_value_N */)
+            void ez_enum(const char *key, T e, T /* enum_value_N */)
             {
                 _writer.Key(key);
                 _ez_enum(e);
