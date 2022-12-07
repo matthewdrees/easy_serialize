@@ -1,4 +1,5 @@
 #include "easy_serialize/json_file_writer.hpp"
+#include "easy_serialize/json_reader.hpp"
 #include "easy_serialize/json_writer.hpp"
 
 #include <iostream>
@@ -82,7 +83,7 @@ public:
     }
 };
 
-int main(int, char *[])
+void write_json()
 {
     Z json_object{127, -32768, 42, -9, 255, 65535, 196, 327, true, 0.1, "grr", OrangeJuicePulpLevel::Medium, {1, 2}, {{3, 4}, {5, 6}}};
     std::cout << easy_serialize::to_json_string(json_object, easy_serialize::JsonIndent::two_spaces) << "\n";
@@ -125,11 +126,94 @@ int main(int, char *[])
             std::cerr << status.error_message << "\n";
         }
         const auto status2 = easy_serialize::to_json_file_vector("imma/crazy/path/that/does/not/exist/json.out", ints);
-        if (status2)
+        if (status2 || status2.error_message != "File opening failed.")
         {
             std::cout << "Expected error message: " << status2.error_message << "\n";
         }
     }
+}
 
+class X
+{
+public:
+    int8_t i8;
+    int16_t i16;
+    int32_t i32;
+    int64_t i64;
+    uint8_t u8;
+    uint16_t u16;
+    uint32_t u32;
+    uint64_t u64;
+    bool b;
+    double d;
+    std::string s;
+    OrangeJuicePulpLevel pulp_level;
+    Y y;
+    // std::vector<Y> v_y;
+
+    template <class Archive>
+    void serialize(Archive &ar)
+    {
+        ar.ez("i8", i8);
+        ar.ez("i16", i16);
+        ar.ez("i32", i32);
+        ar.ez("i64", i64);
+        ar.ez("u8", u8);
+        ar.ez("u16", u16);
+        ar.ez("u32", u32);
+        ar.ez("u64", u64);
+        ar.ez("b", b);
+        ar.ez("d", d);
+        ar.ez("s", s);
+        ar.ez_enum("pulp level", pulp_level, OrangeJuicePulpLevel::N);
+        ar.ez_object("y", y);
+        // ar.ez_vector_objects("v_y", v_y);
+    }
+};
+
+void read_json()
+{
+    const std::string json = R"zzz({
+  "i8": 127,
+  "i16": -32768,
+  "i32": 42,
+  "i64": -9,
+  "u8": 255,
+  "u16": 65535,
+  "u32": 196,
+  "u64": 327,
+  "b": true,
+  "d": 0.1,
+  "s": "grr",
+  "pulp level": "medium",
+  "y": {
+   "i": 1,
+   "i2": 2
+  },
+  "v_y": [
+   {
+     "i": 3,
+     "i2": 4
+   },
+   {
+     "i": 5,
+     "i2": 6
+   }
+  ]
+})zzz";
+    X x;
+    const auto status = easy_serialize::from_json_string(json, x);
+    if (!status)
+    {
+        std::cerr << status.error_message << "\n";
+        return;
+    }
+    std::cout << "x: " << easy_serialize::to_json_string(x) << "\n";
+}
+
+int main(int, char *[])
+{
+    // write_json();
+    read_json();
     return 0;
 }

@@ -1,3 +1,5 @@
+#include "easy_serialize/json_writer.hpp"
+
 #include <cstdint>
 #include <iostream>
 #include <sstream>
@@ -7,27 +9,28 @@
 #include <iostream>
 #include <locale>
 
-#include "easy_serialize/easy_serialize.h"
-
 using namespace std;
 using namespace easy_serialize;
 
-enum EnumThing
+enum OrangeJuicePulpLevel
 {
-    ENUM_THING_0,
-    ENUM_THING_1,
-    ENUM_THING_N,
+    Low,
+    Medium,
+    High,
+    N,
 };
 
-const char *toString(EnumThing et)
+const char *toString(OrangeJuicePulpLevel et)
 {
     switch (et)
     {
-    case ENUM_THING_0:
-        return "enum thing 0";
-    case ENUM_THING_1:
-        return "enum thing 1";
-    case ENUM_THING_N:
+    case Low:
+        return "low";
+    case Medium:
+        return "medium";
+    case High:
+        return "high";
+    case N:
         break;
     }
     return "";
@@ -61,7 +64,7 @@ public:
     bool b{false};
     double d{0.0};
     int i{0};
-    EnumThing et{ENUM_THING_0};
+    OrangeJuicePulpLevel et{Low};
     B o;
     vector<B> v_o;
 };
@@ -75,7 +78,7 @@ void A::serialize(Archive &ar)
     ar.doDouble(d, "d");
     ar.ez("i", i);
     ar.ezObject("o", o);
-    ar.doEnum(et, ENUM_THING_N, "et");
+    ar.doEnum(et, N, "et");
     ar.doVecObject(v_o, "v_o");
 }
 

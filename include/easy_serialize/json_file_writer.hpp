@@ -20,8 +20,8 @@ namespace easy_serialize
         else
         {
             std::fwrite(json.c_str(), json.size(), 1, fp);
+            fclose(fp);
         }
-        fclose(fp);
         return status;
     }
 

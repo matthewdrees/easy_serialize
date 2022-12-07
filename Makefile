@@ -7,11 +7,15 @@ HDRS := \
     include/easy_serialize/json_writer.hpp \
     include/easy_serialize/rapidjsonwriter_impl.hpp \
 
+#WARNINGS := -Wpedantic -Wshadow -Wextra -Wconversion -Wunused -Wshadow -Werror -fsanitize=address,undefined
+
+WARNINGS := -Wpedantic -Wshadow -Wextra -Wconversion -Wunused -Wshadow -Werror #-fsanitize=address,undefined
+
 main : main.cpp $(HDRS)
-	g++ --std=c++17 -Wall -W -Wconversion -DRAPIDJSON_HAS_STDSTRING=1 -Ofast -Iinclude -I../rapidjson-master/include main.cpp -o $@
+	g++ --std=c++17 $(WARNINGS) -DRAPIDJSON_HAS_STDSTRING=1 -O3 -Iinclude -I../rapidjson-master/include main.cpp -o $@
 
 test_easy_serialize : test/test_easy_serialize.cpp $(HDRS)
-	g++ --std=c++17 -Wall -W -Wconversion -DRAPIDJSON_HAS_STDSTRING=1 -Ofast -Iinclude -I../rapidjson-master/include test/test_easy_serialize.cpp -o $@
+	g++ --std=c++17 $(WARNINGS) -DRAPIDJSON_HAS_STDSTRING=1 -Og -g -Iinclude -I../rapidjson-master/include test/test_easy_serialize.cpp -o $@
 
 .PHONY: test
 test : test_easy_serialize

@@ -246,5 +246,7 @@ The following types are supported:
 * std::vector
 
 Not supported:
+* float (but yes to support for double)
 * pointers
-* classes/structs without a serialize method.
+* classes/structs without a serialize method
+* vectors of vectors
