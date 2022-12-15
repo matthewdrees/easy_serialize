@@ -43,29 +43,49 @@ easy_serialize is a header-only C++11 library for those that want their C++ obje
     class Z
     {
     public:
-
+        int8_t i8;
+        int16_t i16;
+        int32_t i32;
+        int64_t i64;
+        uint8_t u8;
+        uint16_t u16;
+        uint32_t u32 = 0;
+        uint64_t u64;
         bool b;
         double d;
         std::string s;
         OrangeJuicePulpLevel pulp_level;
         Y y;
         std::vector<Y> v_y;
+        std::vector<OrangeJuicePulpLevel> v_e;
+        std::vector<std::string> v_s;
 
         // Client adds this method. Handles reading and writing.
-        template<class Archive>
-        void serialize(Archive& ar)
+        template <class Archive>
+        void serialize(Archive &ar)
         {
+            ar.ez("i8", i8);
+            ar.ez("i16", i16);
+            ar.ez("i32", i32);
+            ar.ez("i64", i64);
+            ar.ez("u8", u8);
+            ar.ez("u16", u16);
+            ar.ez("u32", u32);
+            ar.ez("u64", u64);
             ar.ez("b", b);
             ar.ez("d", d);
             ar.ez("s", s);
             ar.ez_enum("pulp level", pulp_level, OrangeJuicePulpLevel::N);
-            ar.ez_obj("y", y);
-            ar.ez_vec("v_y", v_y);
+            ar.ez_object("y", y);
+            ar.ez_vector_objects("v_y", v_y);
+            ar.ez_vector_enums("v_e", v_e, OrangeJuicePulpLevel::N);
+            ar.ez_vector("v_s", v_s);
         }
     };
 
     int main(int, char*[])
     {
+      LEFT OFF HERE!!
         Z z { true, 0.1, "grr", OrangeJuicePulpLevel::medium, {1, 2}, {{3,4}, {5,6}}};
         std::cout << to_json_string(z);
     }
@@ -149,7 +169,7 @@ Let's say one of the nested JSON values above was the wrong type. The program ab
 
 ... or an enum value didn't exist ...
 
-    ["pulp level"] bad enum value: "just the pulp"
+    ["pulp level"] expected an enum value
 
 ... and many others.
 
@@ -157,7 +177,7 @@ TODO: The default implementation uses rapidjson for UTF-8 validation and parse e
 
 # Class versioning
 
-Use the archive class_version(int) and object_version_supported(int) functions for versioning. 
+Example with object versioning.
 
     class W
     {
@@ -176,32 +196,21 @@ Use the archive class_version(int) and object_version_supported(int) functions f
         template<class Archive>
         void serialize(Archive& ar)
         {
-            ar.class_version(2) // Enables class versioning.
+            ar.class_version(2) // Enables class versioning, with current class version = 2.
             ar.ez("i0", i0);
 
-            ar.object_version_supported(1)
-            ar.ez("i1", i1);
-            ar.ez("s", s);
+            // Version 1
+            ar.ez("i1", i1, 1); // <-- Using method with supported_object_version parameter.
+            ar.ez("s", s, 1); // <-- Using method with supported_object_version parameter.
 
-            ar.object_version_supported(2)
-            ar.ez("i2", i2);
+            // Version 2 
+            ar.ez("i2", i2, 2); // <-- Using method with supported_object_version parameter.
         }
     };
 
 For json archivers this adds a "_objver": int key/value pair to the json if the class version is > 0.
 
     {
-      "_objver": 2,
-      "i1": 0,
-      "i2": 0,
-      "s": "",
-      "i3": 0
-    }
-
-This way older objects such as these can still be read without a missing key error:
-
-    {
-      "_objver": 0,
       "i1": 0
     }
 
@@ -210,6 +219,14 @@ This way older objects such as these can still be read without a missing key err
       "i1": 0,
       "i2": 0,
       "s": ""
+    }
+
+    {
+      "_objver": 2,
+      "i1": 0,
+      "i2": 0,
+      "s": "",
+      "i3": 0
     }
 
 You can only add members with a version change. A possible modification in the future would be to add a function that can remember the deserialized object version so the client could do further processing.
@@ -248,5 +265,6 @@ The following types are supported:
 Not supported:
 * float (but yes to support for double)
 * pointers
-* classes/structs without a serialize method
+* polymorphism
+* classes/structs without a serialize method (must be intrusive)
 * vectors of vectors

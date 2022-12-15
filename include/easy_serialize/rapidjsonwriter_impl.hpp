@@ -19,21 +19,24 @@ namespace easy_serialize
         {
         public:
             explicit RapidJsonWriterArchive(rapidjson::PrettyWriter<rapidjson::StringBuffer> &writer_) : _writer(writer_) {}
-
-            void class_version(int class_version)
+            void class_version(const int class_version_)
             {
-                _writer.Key("_objver");
-                _writer.Int(class_version);
+                if (class_version_ > 0)
+                {
+                    _writer.Key("_objver");
+                    _writer.Int(class_version_);
+                }
             }
-            void object_version_supported(int /* supported_object_version */)
+            template <typename T>
+            void ez(const char *key, T t, int /*object_version_supported*/)
             {
-                // Writers don't care.
+                ez(key, t);
             }
             void ez(const char *key, bool b)
             {
                 _writer.Key(key);
                 _ez(b);
-            };
+            }
             void ez(const char *key, int8_t i)
             {
                 _writer.Key(key);
@@ -74,16 +77,14 @@ namespace easy_serialize
                 _writer.Key(key);
                 _ez(u);
             }
-
             // Rapidjson doesn't support "float" (only "double"), so leave this out.
             // void ez(const char *key, float f)
-
             void ez(const char *key, double d)
             {
                 _writer.Key(key);
                 _ez(d);
             }
-            void ez(const char *key, std::string &s)
+            void ez(const char *key, const std::string &s)
             {
                 _writer.Key(key);
                 _ez(s);
@@ -95,10 +96,42 @@ namespace easy_serialize
                 _ez_enum(e);
             }
             template <typename T>
+            void ez_enum(const char *key, T e, T enum_value_N, int /*object_version_supported*/)
+            {
+                ez_enum(key, e, enum_value_N);
+            }
+            template <typename T>
             void ez_object(const char *key, T &o)
             {
                 _writer.Key(key);
                 _ez_object(o);
+            }
+            template <typename T>
+            void ez_object(const char *key, T t, int /*object_version_supported*/)
+            {
+                ez_object(key, t);
+            }
+            template <typename T>
+            void ez_vector(const char *key, std::vector<T> &v)
+            {
+                _writer.Key(key);
+                _ez_vector(v);
+            }
+            template <typename T>
+            void ez_vector(const char *key, std::vector<T> v, int /*object_version_supported*/)
+            {
+                ez_vector(key, v);
+            }
+            template <typename T>
+            void ez_vector_enums(const char *key, std::vector<T> &v, T /*enum_value_N*/)
+            {
+                _writer.Key(key);
+                _ez_vector_enums(v);
+            }
+            template <typename T>
+            void ez_vector_enums(const char *key, std::vector<T> &v, T enum_value_N, int /*object_version_supported*/)
+            {
+                ez_vector_enums(key, v, enum_value_N);
             }
             template <typename T>
             void ez_vector_objects(const char *key, std::vector<T> &v)
@@ -107,16 +140,9 @@ namespace easy_serialize
                 _ez_vector_objects(v);
             }
             template <typename T>
-            void ez_vector_enums(const char *key, std::vector<T> &v)
+            void ez_vector_objects(const char *key, std::vector<T> v, int /*object_version_supported*/)
             {
-                _writer.Key(key);
-                _ez_vector_enums(v);
-            }
-            template <typename T>
-            void ez_vector(const char *key, std::vector<T> &v)
-            {
-                _writer.Key(key);
-                _ez_vector(v);
+                ez_vector_objects(key, v);
             }
 
             RapidJsonWriterArchive(const RapidJsonWriterArchive &) = delete;
@@ -136,6 +162,55 @@ namespace easy_serialize
                                               JsonIndent json_indent);
 
         private:
+            void _ez(bool b)
+            {
+                _writer.Bool(b);
+            }
+            void _ez(int8_t i8)
+            {
+                _writer.Int(i8);
+            }
+            void _ez(int16_t i16)
+            {
+                _writer.Int(i16);
+            }
+            void _ez(int32_t i32)
+            {
+                _writer.Int(i32);
+            }
+            void _ez(int64_t i64)
+            {
+                _writer.Int64(i64);
+            }
+            void _ez(uint8_t u8)
+            {
+                _writer.Uint(u8);
+            }
+            void _ez(uint16_t u16)
+            {
+                _writer.Uint(u16);
+            }
+            void _ez(uint32_t u32)
+            {
+                _writer.Uint(u32);
+            }
+            void _ez(uint64_t u64)
+            {
+                _writer.Uint64(u64);
+            }
+            void _ez(double d)
+            {
+                _writer.Double(d);
+            }
+            void _ez(const std::string &s)
+            {
+                _writer.String(s);
+            }
+            template <typename T>
+            void _ez_enum(T &e)
+            {
+                _writer.String(to_string(e));
+            }
             template <typename T>
             void _ez_object(T &o)
             {
@@ -144,9 +219,24 @@ namespace easy_serialize
                 _writer.EndObject();
             }
             template <typename T>
-            void _ez_enum(T &e)
+            void _ez_vector(std::vector<T> &v)
             {
-                _writer.String(to_string(e));
+                _writer.StartArray();
+                for (auto &t : v)
+                {
+                    _ez(t);
+                }
+                _writer.EndArray();
+            }
+            template <typename T>
+            void _ez_vector_enums(std::vector<T> &v)
+            {
+                _writer.StartArray();
+                for (auto e : v)
+                {
+                    _ez_enum(e);
+                }
+                _writer.EndArray();
             }
             template <typename T>
             void _ez_vector_objects(std::vector<T> &v)
@@ -160,91 +250,8 @@ namespace easy_serialize
                 }
                 _writer.EndArray();
             }
-            template <typename T>
-            void _ez_vector_enums(std::vector<T> &v)
-            {
-                _writer.StartArray();
-                for (auto &e : v)
-                {
-                    _ez_enum(e);
-                }
-                _writer.EndArray();
-            }
-            template <typename T>
-            void _ez_vector(std::vector<T> &v)
-            {
-                _writer.StartArray();
-                for (auto &t : v)
-                {
-                    _ez(t);
-                }
-                _writer.EndArray();
-            }
-            void _ez(bool b)
-            {
-                _writer.Bool(b);
-            }
-            void _ez(int8_t i)
-            {
-                _writer.Int(i);
-            }
-            void _ez(int16_t i)
-            {
-                _writer.Int(i);
-            }
-            void _ez(int32_t i)
-            {
-                _writer.Int(i);
-            }
-            void _ez(int64_t i)
-            {
-                _writer.Int64(i);
-            }
-            void _ez(uint8_t u)
-            {
-                _writer.Uint(u);
-            }
-            void _ez(uint16_t u)
-            {
-                _writer.Uint(u);
-            }
-            void _ez(uint32_t u)
-            {
-                _writer.Uint(u);
-            }
-            void _ez(uint64_t u)
-            {
-                _writer.Uint64(u);
-            }
-            void _ez(double d)
-            {
-                _writer.Double(d);
-            }
-            void _ez(const std::string &s)
-            {
-                _writer.String(s);
-            }
-
             rapidjson::PrettyWriter<rapidjson::StringBuffer> &_writer;
         };
-
-        inline unsigned get_num_spaces(JsonIndent json_indent)
-        {
-            switch (json_indent)
-            {
-            case JsonIndent::compact:
-                break;
-            case JsonIndent::one_space:
-                return 1;
-            case JsonIndent::two_spaces:
-                return 2;
-            case JsonIndent::three_spaces:
-                return 3;
-            case JsonIndent::four_spaces:
-                return 4;
-            }
-            return 0;
-        }
 
         // Create UTF-8 JSON from object in memory buffer.
         //
@@ -276,21 +283,6 @@ namespace easy_serialize
             a._ez_vector_objects(v);
         }
 
-        // Create UTF-8 JSON from vector of enums in memory buffer.
-        //
-        // \param string_buffer: rapidjson::StringBuffer
-        // \param obj: object to json
-        // \param num_indent_spaces: Number of spaces to indent. If 0, make compact (no newlines).
-        template <typename T>
-        void to_json_buffer_vector_enums(rapidjson::StringBuffer &string_buffer, std::vector<T> &v,
-                                         JsonIndent json_indent)
-        {
-            rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(string_buffer);
-            writer.SetIndent(' ', get_num_spaces(json_indent));
-            RapidJsonWriterArchive a(writer);
-            a._ez_vector_enums(v);
-        }
-
         // Create UTF-8 JSON from vector of supported fundamental types in memory buffer.
         //
         // \param string_buffer: rapidjson::StringBuffer
@@ -306,5 +298,19 @@ namespace easy_serialize
             a._ez_vector(v);
         }
 
+        // Create UTF-8 JSON from vector of enums in memory buffer.
+        //
+        // \param string_buffer: rapidjson::StringBuffer
+        // \param obj: object to json
+        // \param num_indent_spaces: Number of spaces to indent. If 0, make compact (no newlines).
+        template <typename T>
+        void to_json_buffer_vector_enums(rapidjson::StringBuffer &string_buffer, std::vector<T> &v,
+                                         JsonIndent json_indent)
+        {
+            rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(string_buffer);
+            writer.SetIndent(' ', get_num_spaces(json_indent));
+            RapidJsonWriterArchive a(writer);
+            a._ez_vector_enums(v);
+        }
     } // namespace rapidjson_impl
 } // namespace easy_serialize

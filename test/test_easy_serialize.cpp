@@ -1,425 +1,595 @@
+// Unit tests for easy_serialize library.
+
+#include "easy_serialize/json_reader.hpp"
 #include "easy_serialize/json_writer.hpp"
 
-#include <cstdint>
 #include <iostream>
-#include <sstream>
-#include <string>
+#include <limits>
 #include <vector>
-
-#include <iostream>
-#include <locale>
-
-using namespace std;
-using namespace easy_serialize;
 
 enum OrangeJuicePulpLevel
 {
-    Low,
-    Medium,
-    High,
-    N,
+  Low,
+  Medium,
+  High,
+  N // One past last valid value. (Have to have this.)
 };
 
-const char *toString(OrangeJuicePulpLevel et)
+// Client has to provide to_string() function for enum values.
+const char *to_string(OrangeJuicePulpLevel level)
 {
-    switch (et)
-    {
-    case Low:
-        return "low";
-    case Medium:
-        return "medium";
-    case High:
-        return "high";
-    case N:
-        break;
-    }
-    return "";
+  switch (level)
+  {
+  case OrangeJuicePulpLevel::Low:
+    return "low";
+  case OrangeJuicePulpLevel::Medium:
+    return "medium";
+  case OrangeJuicePulpLevel::High:
+    return "high";
+  case OrangeJuicePulpLevel::N:
+    break;
+  }
+  return "";
 }
 
-class B
+class Y
 {
 public:
-    int x{0};
-    string s;
-    std::vector<int> v_i;
+  double d = 0.0;
+  double d2 = 0.0;
 
-    template <class Archive>
-    void serialize(Archive &ar);
+  // Client adds this method. Handles reading and writing.
+  template <class Archive>
+  void serialize(Archive &ar)
+  {
+    ar.ez("d", d);
+    ar.ez("d2", d2);
+  }
 };
 
-template <class Archive>
-void B::serialize(Archive &ar)
-{
-    ar.ez("x", x);
-    ar.doString(s, "s");
-    ar.doVecInt(v_i, "v_i");
-}
-
-class A
+class Z
 {
 public:
-    template <class Archive>
-    void serialize(Archive &ar);
+  int8_t i8 = 0;
+  int16_t i16 = 0;
+  int32_t i32 = 0;
+  int64_t i64 = 0;
+  uint8_t u8 = 0;
+  uint16_t u16 = 0;
+  uint32_t u32 = 0;
+  uint64_t u64 = 0;
+  bool b = false;
+  double d = 0.0;
+  std::string s;
+  OrangeJuicePulpLevel pulp_level = OrangeJuicePulpLevel::Low;
+  Y y;
+  std::vector<Y> v_y;
+  std::vector<OrangeJuicePulpLevel> v_e;
+  std::vector<std::string> v_s;
 
-    bool b{false};
-    double d{0.0};
-    int i{0};
-    OrangeJuicePulpLevel et{Low};
-    B o;
-    vector<B> v_o;
-};
-
-template <class Archive>
-void A::serialize(Archive &ar)
-{
-    // const int CLASS_VERSION = 0;
-    // ar.doHeader("A", CLASS_VERSION);
+  // Client adds this method. Handles reading and writing.
+  template <class Archive>
+  void serialize(Archive &ar)
+  {
+    ar.ez("i8", i8);
+    ar.ez("i16", i16);
+    ar.ez("i32", i32);
+    ar.ez("i64", i64);
+    ar.ez("u8", u8);
+    ar.ez("u16", u16);
+    ar.ez("u32", u32);
+    ar.ez("u64", u64);
     ar.ez("b", b);
-    ar.doDouble(d, "d");
-    ar.ez("i", i);
-    ar.ezObject("o", o);
-    ar.doEnum(et, N, "et");
-    ar.doVecObject(v_o, "v_o");
-}
+    ar.ez("d", d);
+    ar.ez("s", s);
+    ar.ez_enum("pulp level", pulp_level, OrangeJuicePulpLevel::N);
+    ar.ez_object("y", y);
+    ar.ez_vector_objects("v_y", v_y);
+    ar.ez_vector_enums("v_e", v_e, OrangeJuicePulpLevel::N);
+    ar.ez_vector("v_s", v_s);
+  }
+};
 
-void validate_exception(const char *file,
-                        int line,
-                        const std::string &json,
-                        const std::string &exception,
-                        int &num_tests_passed)
+int test_writer_mins()
 {
-    try
-    {
-        // istringstream iss(json);
-        A a;
-        // from_json_stream(a, iss);
-        from_json_stream(a, json);
-        to_json_stream(a, cout);
-    }
-    catch (const std::exception &ex)
-    {
-        if (ex.what() != exception)
-        {
-            cerr << endl
-                 << file << ":" << line
-                 << ", expected exception \"" << exception
-                 << "\", found \"" << ex.what() << "\"" << endl;
-        }
-        else
-        {
-            cout << ".";
-            ++num_tests_passed;
-        }
-
-        return;
-    }
-
-    cerr << endl
-         << file << ":" << line
-         << ", expected exception \"" << exception
-         << "\" but none thrown" << endl;
+  Z z;
+  z.i8 = std::numeric_limits<int8_t>::min();
+  z.i16 = std::numeric_limits<int16_t>::min();
+  z.i32 = std::numeric_limits<int32_t>::min();
+  z.i64 = std::numeric_limits<int64_t>::min();
+  z.u8 = std::numeric_limits<uint8_t>::min();
+  z.u16 = std::numeric_limits<uint16_t>::min();
+  z.u32 = std::numeric_limits<uint32_t>::min();
+  z.u64 = std::numeric_limits<uint64_t>::min();
+  z.b = false;
+  z.d = std::numeric_limits<double>::min();
+  z.y.d = std::numeric_limits<double>::quiet_NaN();
+  z.y.d2 = -std::numeric_limits<double>::infinity();
+  std::string actual = easy_serialize::to_json_string(z);
+  const std::string expected = R"zzz({
+  "i8": -128,
+  "i16": -32768,
+  "i32": -2147483648,
+  "i64": -9223372036854775808,
+  "u8": 0,
+  "u16": 0,
+  "u32": 0,
+  "u64": 0,
+  "b": false,
+  "d": 2.2250738585072014e-308,
+  "s": "",
+  "pulp level": "low",
+  "y": {
+    "d": NaN,
+    "d2": -Infinity
+  },
+  "v_y": [],
+  "v_e": [],
+  "v_s": []
+})zzz";
+  if (expected != actual)
+  {
+    std::cerr << __FILE__ << ":" << __LINE__ << "FAIL, expected: " << expected
+              << "\nactual: " << actual << "\n";
+    return 1;
+  }
+  return 0;
 }
 
-#define VALIDATE_EXCEPTION(json, exception_str) \
-    ++num_tests;                                \
-    validate_exception(__FILE__, __LINE__, json, exception_str, num_tests_passed)
-
-void validate_json(const char *file,
-                   int line,
-                   const std::string &json,
-                   int &num_tests_passed)
+bool test_writer_maxes()
 {
-    try
+  Z z;
+  z.i8 = std::numeric_limits<int8_t>::max();
+  z.i16 = std::numeric_limits<int16_t>::max();
+  z.i32 = std::numeric_limits<int32_t>::max();
+  z.i64 = std::numeric_limits<int64_t>::max();
+  z.u8 = std::numeric_limits<uint8_t>::max();
+  z.u16 = std::numeric_limits<uint16_t>::max();
+  z.u32 = std::numeric_limits<uint32_t>::max();
+  z.u64 = std::numeric_limits<uint64_t>::max();
+  z.b = true;
+  z.d = std::numeric_limits<double>::max();
+  z.s = "this is a string";
+  z.pulp_level = OrangeJuicePulpLevel::High;
+  z.y.d = std::numeric_limits<double>::lowest();
+  z.y.d2 = std::numeric_limits<double>::infinity();
+  z.v_y = {{0.0, -std::numeric_limits<double>::lowest()}};
+  z.v_e = {OrangeJuicePulpLevel::High, OrangeJuicePulpLevel::Medium, OrangeJuicePulpLevel::Low};
+  z.v_s = {"strings", "", "1"};
+  std::string actual = easy_serialize::to_json_string(z);
+  const std::string expected = R"zzz({
+  "i8": 127,
+  "i16": 32767,
+  "i32": 2147483647,
+  "i64": 9223372036854775807,
+  "u8": 255,
+  "u16": 65535,
+  "u32": 4294967295,
+  "u64": 18446744073709551615,
+  "b": true,
+  "d": 1.7976931348623157e308,
+  "s": "this is a string",
+  "pulp level": "high",
+  "y": {
+    "d": -1.7976931348623157e308,
+    "d2": Infinity
+  },
+  "v_y": [
     {
-        // istringstream iss(json);
-        A a;
-        // from_json_stream(a, iss);
-        from_json_stream(a, json);
-        ostringstream oss;
-        to_json_stream(a, oss);
-
-        auto actual = oss.str();
-        if (actual == json)
-        {
-            ++num_tests_passed;
-            return;
-        }
-        else
-        {
-            cerr << endl
-                 << file << ":" << line
-                 << ", expected json:" << endl
-                 << json << endl
-                 << "found: json:" << endl
-                 << actual << "\"" << endl;
-        }
+      "d": 0.0,
+      "d2": 1.7976931348623157e308
     }
-    catch (const std::exception &ex)
-    {
-        cerr << endl
-             << file << ":" << line
-             << ", didn't expect exception, found \""
-             << ex.what() << "\"" << endl;
-    }
+  ],
+  "v_e": [
+    "high",
+    "medium",
+    "low"
+  ],
+  "v_s": [
+    "strings",
+    "",
+    "1"
+  ]
+})zzz";
+  if (expected != actual)
+  {
+    std::cerr << __FILE__ << ":" << __LINE__ << "FAIL, expected: " << expected
+              << "\nactual: " << actual << "\n";
+    return 1;
+  }
+  return 0;
 }
 
-#define VALIDATE_JSON(json) \
-    ++num_tests;            \
-    validate_json(__FILE__, __LINE__, json, num_tests_passed)
+int test_read()
+{
+  const std::string expected = R"zzz({
+  "i8": 127,
+  "i16": -32768,
+  "i32": 42,
+  "i64": -9,
+  "u8": 255,
+  "u16": 65535,
+  "u32": 196,
+  "u64": 327,
+  "b": true,
+  "d": 0.1,
+  "s": "grr",
+  "pulp level": "medium",
+  "y": {
+    "d": 1.0,
+    "d2": 2.0
+  },
+  "v_y": [
+    {
+      "d": 3.0,
+      "d2": 4.0
+    },
+    {
+      "d": 5.0,
+      "d2": 6.0
+    }
+  ],
+  "v_e": [
+    "medium",
+    "high",
+    "low"
+  ],
+  "v_s": [
+    "we",
+    "are",
+    "strings"
+  ]
+})zzz";
+
+  Z z;
+  const auto status = easy_serialize::from_json_string(expected, z);
+  const auto actual = easy_serialize::to_json_string(z);
+  if (!status || expected != actual)
+  {
+    std::cerr << __FILE__ << ":" << __LINE__ << "FAIL, error: \"" << status.get_error_message()
+              << "\"\nexpected: " << expected
+              << "\nactual: " << actual << "\n";
+    return 1;
+  }
+  return 0;
+}
+
+struct TestCase
+{
+  const char *const json;
+  std::string expected_error;
+};
+
+template <class T>
+int run_test_cases(int line, const char *function, const std::vector<TestCase> &test_cases)
+{
+  int num_fails = 0;
+  for (const auto &tc : test_cases)
+  {
+    T tb;
+    const auto status = easy_serialize::from_json_string(tc.json, tb);
+    if (tc.expected_error != status.get_error_message())
+    {
+      ++num_fails;
+      std::cerr << __FILE__ << ":" << line << ", FAIL, " << function << "(json: '" << tc.json
+                << "'), expected: '" << tc.expected_error
+                << "', actual: '" << status.get_error_message()
+                << "'\n";
+    }
+  }
+  return num_fails;
+}
+
+#define RUN_TEST_CASES(test_struct, test_cases) \
+  run_test_cases<test_struct>(__LINE__, __FUNCTION__, test_cases)
+
+struct TestBool
+{
+  bool t;
+  template <class Archive>
+  void serialize(Archive &ar)
+  {
+    ar.ez("k", t);
+  }
+};
+int test_read_bool()
+{
+  std::vector<TestCase> test_cases = {
+      {"{\"a\": true}", "[\"k\"] key not found"},
+      {"{\"k\": 1}", "[\"k\"] expected a bool"},
+      {"{\"k\": \"true\"}", "[\"k\"] expected a bool"},
+  };
+  return RUN_TEST_CASES(TestBool, test_cases);
+}
+
+struct TestI8
+{
+  int8_t t;
+  template <class Archive>
+  void serialize(Archive &ar)
+  {
+    ar.ez("k", t);
+  }
+};
+int test_read_i8()
+{
+  std::vector<TestCase> test_cases = {
+      {"{\"a\": true}", "[\"k\"] key not found"},
+      {"{\"k\": -129}", "[\"k\"] expected an int8"},
+      {"{\"k\": 128}", "[\"k\"] expected an int8"},
+      {"{\"k\": \"grr\"}", "[\"k\"] expected an int8"},
+  };
+  return RUN_TEST_CASES(TestI8, test_cases);
+}
+
+struct TestI16
+{
+  int16_t t;
+  template <class Archive>
+  void serialize(Archive &ar)
+  {
+    ar.ez("k", t);
+  }
+};
+int test_read_i16()
+{
+  std::vector<TestCase> test_cases = {
+      {"{\"a\": true}", "[\"k\"] key not found"},
+      {"{\"k\": -32769}", "[\"k\"] expected an int16"},
+      {"{\"k\": 32768}", "[\"k\"] expected an int16"},
+      {"{\"k\": 0.0}", "[\"k\"] expected an int16"},
+  };
+  return RUN_TEST_CASES(TestI16, test_cases);
+}
+
+struct TestI32
+{
+  int32_t t;
+  template <class Archive>
+  void serialize(Archive &ar)
+  {
+    ar.ez("k", t);
+  }
+};
+int test_read_i32()
+{
+  std::vector<TestCase> test_cases = {
+      {"{\"a\": true}", "[\"k\"] key not found"},
+      {"{\"k\": -2147483649}", "[\"k\"] expected an int32"},
+      {"{\"k\": 2147483648}", "[\"k\"] expected an int32"},
+      {"{\"k\": false}", "[\"k\"] expected an int32"},
+  };
+  return RUN_TEST_CASES(TestI32, test_cases);
+}
+
+struct TestI64
+{
+  int64_t t;
+  template <class Archive>
+  void serialize(Archive &ar)
+  {
+    ar.ez("k", t);
+  }
+};
+int test_read_i64()
+{
+  std::vector<TestCase> test_cases = {
+      {"{\"a\": true}", "[\"k\"] key not found"},
+      {"{\"k\": -9223372036854775809}", "[\"k\"] expected an int64"},
+      {"{\"k\": 9223372036854775808}", "[\"k\"] expected an int64"},
+      {"{\"k\": {}}", "[\"k\"] expected an int64"},
+  };
+  return RUN_TEST_CASES(TestI64, test_cases);
+}
+
+struct TestU8
+{
+  uint8_t t;
+  template <class Archive>
+  void serialize(Archive &ar)
+  {
+    ar.ez("k", t);
+  }
+};
+int test_read_u8()
+{
+  std::vector<TestCase> test_cases = {
+      {"{\"a\": true}", "[\"k\"] key not found"},
+      {"{\"k\": -1}", "[\"k\"] expected a uint8"},
+      {"{\"k\": 256}", "[\"k\"] expected a uint8"},
+      {"{\"k\": \"grr\"}", "[\"k\"] expected a uint8"},
+  };
+  return RUN_TEST_CASES(TestU8, test_cases);
+}
+
+struct TestU16
+{
+  uint16_t t;
+  template <class Archive>
+  void serialize(Archive &ar)
+  {
+    ar.ez("k", t);
+  }
+};
+int test_read_u16()
+{
+  std::vector<TestCase> test_cases = {
+      {"{\"a\": true}", "[\"k\"] key not found"},
+      {"{\"k\": -1}", "[\"k\"] expected a uint16"},
+      {"{\"k\": 65536}", "[\"k\"] expected a uint16"},
+      {"{\"k\": 0.0}", "[\"k\"] expected a uint16"},
+  };
+  return RUN_TEST_CASES(TestU16, test_cases);
+}
+
+struct TestU32
+{
+  uint32_t t;
+  template <class Archive>
+  void serialize(Archive &ar)
+  {
+    ar.ez("k", t);
+  }
+};
+int test_read_u32()
+{
+  std::vector<TestCase> test_cases = {
+      {"{\"a\": true}", "[\"k\"] key not found"},
+      {"{\"k\": -1}", "[\"k\"] expected a uint32"},
+      {"{\"k\": 4294967296}", "[\"k\"] expected a uint32"},
+      {"{\"k\": false}", "[\"k\"] expected a uint32"},
+  };
+  return RUN_TEST_CASES(TestU32, test_cases);
+}
+
+struct TestU64
+{
+  uint64_t t;
+  template <class Archive>
+  void serialize(Archive &ar)
+  {
+    ar.ez("k", t);
+  }
+};
+int test_read_u64()
+{
+  std::vector<TestCase> test_cases = {
+      {"{\"a\": true}", "[\"k\"] key not found"},
+      {"{\"k\": -1}", "[\"k\"] expected a uint64"},
+      {"{\"k\": 18446744073709551616}", "[\"k\"] expected a uint64"},
+      {"{\"k\": {}}", "[\"k\"] expected a uint64"},
+  };
+  return RUN_TEST_CASES(TestU64, test_cases);
+}
+
+struct TestDouble
+{
+  double t;
+  template <class Archive>
+  void serialize(Archive &ar)
+  {
+    ar.ez("k", t);
+  }
+};
+int test_read_double()
+{
+  std::vector<TestCase> test_cases = {
+      {"{\"a\": 0.0}", "[\"k\"] key not found"},
+      {"{\"k\": {}}", "[\"k\"] expected a double"},
+      {"{\"k\": 1}", "[\"k\"] expected a double"},
+  };
+  return RUN_TEST_CASES(TestDouble, test_cases);
+}
+
+struct TestString
+{
+  std::string t;
+  template <class Archive>
+  void serialize(Archive &ar)
+  {
+    ar.ez("k", t);
+  }
+};
+int test_read_string()
+{
+  std::vector<TestCase> test_cases = {
+      {"{\"a\": 0.0}", "[\"k\"] key not found"},
+      {"{\"k\": false}", "[\"k\"] expected a string"},
+  };
+  return RUN_TEST_CASES(TestString, test_cases);
+}
+
+struct TestEnum
+{
+  OrangeJuicePulpLevel t;
+  template <class Archive>
+  void serialize(Archive &ar)
+  {
+    ar.ez_enum("k", t, OrangeJuicePulpLevel::N);
+  }
+};
+int test_read_enum()
+{
+  std::vector<TestCase> test_cases = {
+      {"{\"a\": 0.0}", "[\"k\"] key not found"},
+      {"{\"k\": false}", "[\"k\"] expected a string"},
+      {"{\"k\": \"dude\"}", "[\"k\"] expected an enum type"},
+  };
+  return RUN_TEST_CASES(TestEnum, test_cases);
+}
+
+struct TestObject
+{
+  Y t;
+  template <class Archive>
+  void serialize(Archive &ar)
+  {
+    ar.ez_object("k", t);
+  }
+};
+int test_read_object()
+{
+  std::vector<TestCase> test_cases = {
+      {"{\"a\": 0.0}", "[\"k\"] key not found"},
+      {"{\"k\": false}", "[\"k\"] expected an object"},
+      {"{\"k\": {}}", "[\"k\"][\"d\"] key not found"},
+      {"{\"k\": {\"d\": true}}", "[\"k\"][\"d\"] expected a double"},
+  };
+  return RUN_TEST_CASES(TestObject, test_cases);
+}
+
+struct TestVector
+{
+  std::vector<int32_t> t;
+  template <class Archive>
+  void serialize(Archive &ar)
+  {
+    ar.ez_vector("k", t);
+  }
+};
+int test_read_vector()
+{
+  std::vector<TestCase> test_cases = {
+      {"{\"a\": 0.0}", "[\"k\"] key not found"},
+      {"{\"k\": false}", "[\"k\"] expected an array"},
+      {"{\"k\": {}}", "[\"k\"] expected an array"},
+      {"{\"k\": [7, \"\"]}", "[\"k\"][1] expected an int32"},
+  };
+  return RUN_TEST_CASES(TestVector, test_cases);
+}
+
+struct TestVersionedObject
+{
+  bool b;
+  int32_t i;
+  template <class Archive>
+  void serialize(Archive &ar)
+  {
+    ar.class_version(1);
+    ar.ez("b", b);
+    ar.ez("i", i, 1);
+  }
+};
+int test_read_versioned_object()
+{
+  std::vector<TestCase> test_cases = {
+      {"{\"b\": false}", ""},
+      {"{\"_objver\": 0, \"b\": false}", ""},
+      {"{\"_objver\": 1, \"b\": false}", "[\"i\"] key not found"},
+      {"{\"_objver\": 1, \"b\": false, \"i\": 2}", ""},
+      {"{\"_objver\": 2, \"b\": false, \"i\": 2}", "[\"_objver\"] object too new"},
+  };
+  return RUN_TEST_CASES(TestVersionedObject, test_cases);
+}
 
 int main()
 {
-    cout << "Testing " << __FILE__ << ": ";
+  const int num_fails = test_writer_mins() + test_writer_maxes() + test_read() +
+                        test_read_bool() + test_read_i8() + test_read_i16() +
+                        test_read_i32() + test_read_i64() + test_read_u8() +
+                        test_read_u16() + test_read_u32() + test_read_u64() +
+                        test_read_double() + test_read_string() + test_read_enum() +
+                        test_read_object() + test_read_vector() + test_read_versioned_object();
 
-    int num_tests = 0;
-    int num_tests_passed = 0;
-
-    {
-        const string json = "{\n"
-                            "  \"b\": true,\n"
-                            "  \"d\": 3.14159265358979,\n"
-                            "  \"i\": 2147483648,\n"
-                            "  \"o\": {\n"
-                            "    \"x\": 8,\n"
-                            "    \"s\": \"a string\",\n"
-                            "    \"v_i\": [\n"
-                            "      1,\n"
-                            "      2,\n"
-                            "      3\n"
-                            "    ]\n"
-                            "  },\n"
-                            "  \"et\": \"enum thing 1\",\n"
-                            "  \"v_o\": [\n"
-                            "    {\n"
-                            "      \"x\": 65535,\n"
-                            "      \"s\": \"a string\",\n"
-                            "      \"v_i\": []\n"
-                            "    },\n"
-                            "    {\n"
-                            "      \"x\": 65534,\n"
-                            "      \"s\": \"b string\",\n"
-                            "      \"v_i\": [\n"
-                            "        3\n"
-                            "      ]\n"
-                            "    }\n"
-                            "  ]\n"
-                            "}";
-        VALIDATE_JSON(json);
-    }
-
-    {
-        const string json = "[]";
-        VALIDATE_EXCEPTION(json, "root must be an object");
-    }
-
-    {
-        const string json = "{\n"
-                            "  \"b\": 0,\n"
-                            "  \"d\": NaN,\n"
-                            "  \"i\": 9,\n"
-                            "  \"o\": {\n"
-                            "    \"x\": 8,\n"
-                            "    \"s\": \"s\",\n"
-                            "    \"v_i\": [1, 2, 3]\n"
-                            "  },\n"
-                            "  \"et\": \"enum thing 0\"\n"
-                            "}";
-        VALIDATE_EXCEPTION(json, "[\"b\"] expected a bool");
-    }
-
-    {
-        const string json = "{\n"
-                            "  \"b\": {\"grr\": true},\n"
-                            "  \"d\": 4.4,\n"
-                            "  \"i\": 9,\n"
-                            "  \"o\": {\n"
-                            "    \"x\": 8,\n"
-                            "    \"s\": \"s\",\n"
-                            "    \"v_i\": [1, 2, 3]\n"
-                            "  },\n"
-                            "  \"et\": \"enum thing 0\"\n"
-                            "}";
-        VALIDATE_EXCEPTION(json, "[\"b\"] expected a bool");
-    }
-
-    {
-        const string json = "{\n"
-                            "  \"b\": false,\n"
-                            "  \"d\": 6.6,\n"
-                            "  \"i\": true,\n"
-                            "  \"o\": {\n"
-                            "    \"x\": 8,\n"
-                            "    \"s\": \"s\",\n"
-                            "    \"v_i\": [1, 2, 3]\n"
-                            "  },\n"
-                            "  \"et\": \"enum thing 0\"\n"
-                            "}";
-        VALIDATE_EXCEPTION(json, "[\"i\"] expected an int");
-    }
-
-    {
-        const string json = "{\n"
-                            "  \"b\": false,\n"
-                            "  \"d\": 8.8,\n"
-                            "  \"i\": 1000,\n"
-                            "  \"o\": 7,\n"
-                            "  \"et\": \"enum thing 0\"\n"
-                            "}";
-        VALIDATE_EXCEPTION(json, "[\"o\"] expected an object");
-    }
-
-    {
-        const string json = "{\n"
-                            "  \"i\": true,\n"
-                            "  \"d\": 8.8,\n"
-                            "  \"o\": {\n"
-                            "    \"x\": 8,\n"
-                            "    \"s\": \"s\",\n"
-                            "    \"v_i\": [1, 2, 3]\n"
-                            "  },\n"
-                            "  \"et\": \"enum thing 0\"\n"
-                            "}";
-        VALIDATE_EXCEPTION(json, "[\"b\"] key doesn't exist");
-    }
-
-    {
-        const string json = "{\n"
-                            "  \"b\": false,\n"
-                            "  \"d\": 8.8,\n"
-                            "  \"i\": 7,\n"
-                            "  \"et\": \"enum thing 0\"\n"
-                            "}";
-        VALIDATE_EXCEPTION(json, "[\"o\"] key doesn't exist");
-    }
-
-    {
-        const string json = "{\n"
-                            "  \"b\": false,\n"
-                            "  \"d\": 1.234567890123,\n"
-                            "  \"i\": 7,\n"
-                            "  \"o\": {\n"
-                            "    \"x\": 8,\n"
-                            "    \"s\": \"s\",\n"
-                            "    \"v_i\": [1, 2, 3]\n"
-                            "  },\n"
-                            "  \"et\": {\"grr\": true}\n"
-                            "}";
-        VALIDATE_EXCEPTION(json, "[\"et\"] expected a string");
-    }
-
-    {
-        const string json = "{\n"
-                            "  \"b\": false,\n"
-                            "  \"d\": 1.234567890123,\n"
-                            "  \"i\": 7,\n"
-                            "  \"o\": {\n"
-                            "    \"x\": 8,\n"
-                            "    \"s\": \"s\",\n"
-                            "    \"v_i\": [1, 2, 3]\n"
-                            "  },\n"
-                            "  \"et\": \"not an enum thing\"\n"
-                            "}";
-        VALIDATE_EXCEPTION(json, "[\"et\"] bad enum value: \"not an enum thing\"");
-    }
-
-    {
-        const string json = "{\n"
-                            "  \"b\": false,\n"
-                            "  \"d\": 1.234567890123,\n"
-                            "  \"i\": 7,\n"
-                            "  \"o\": {\n"
-                            "    \"x\": 8,\n"
-                            "    \"s\": \"s\",\n"
-                            "    \"v_i\": 0.1\n"
-                            "  },\n"
-                            "  \"et\": \"not an enum thing\"\n"
-                            "}";
-        VALIDATE_EXCEPTION(json, "[\"o\"][\"v_i\"] expected an array of integers");
-    }
-
-    {
-        const string json = "{\n"
-                            "  \"b\": false,\n"
-                            "  \"d\": 1.234567890123,\n"
-                            "  \"i\": 7,\n"
-                            "  \"o\": {\n"
-                            "    \"x\": 8,\n"
-                            "    \"s\": \"s\",\n"
-                            "    \"v_i\": [7, 0.1]\n"
-                            "  },\n"
-                            "  \"et\": \"not an enum thing\"\n"
-                            "}";
-        VALIDATE_EXCEPTION(json, "[\"o\"][\"v_i\"][1] expected an integer");
-    }
-
-    {
-        const string json = "{\n"
-                            "  \"b\": true,\n"
-                            "  \"d\": 1.234567890123,\n"
-                            "  \"i\": 9,\n"
-                            "  \"o\": {\n"
-                            "    \"x\": 8,\n"
-                            "    \"s\": \"a string\",\n"
-                            "    \"v_i\": []\n"
-                            "  },\n"
-                            "  \"et\": \"enum thing 1\"\n"
-                            "}";
-        VALIDATE_EXCEPTION(json, "[\"v_o\"] key doesn't exist");
-    }
-
-    {
-        const string json = "{\n"
-                            "  \"b\": true,\n"
-                            "  \"d\": 1.234567890123,\n"
-                            "  \"i\": 9,\n"
-                            "  \"o\": {\n"
-                            "    \"x\": 8,\n"
-                            "    \"s\": \"a string\",\n"
-                            "    \"v_i\": []\n"
-                            "  },\n"
-                            "  \"et\": \"enum thing 1\",\n"
-                            "  \"v_o\": [\n"
-                            "    {\n"
-                            "      \"x\": 65535,\n"
-                            "      \"s\": \"a string\",\n"
-                            "      \"v_i\": []\n"
-                            "    },\n"
-                            "    true\n"
-                            "  ]\n"
-                            "}";
-        VALIDATE_EXCEPTION(json, "[\"v_o\"][1] expected an object");
-    }
-
-    {
-        const string json = "{\n"
-                            "  \"b\": true,\n"
-                            "  \"d\": 1.234567890123,\n"
-                            "  \"i\": 9,\n"
-                            "  \"o\": {\n"
-                            "    \"x\": 8,\n"
-                            "    \"s\": \"a string\",\n"
-                            "    \"v_i\": []\n"
-                            "  },\n"
-                            "  \"et\": \"enum thing 1\",\n"
-                            "  \"v_o\": [\n"
-                            "    {\n"
-                            "      \"x\": 65535,\n"
-                            "      \"s\": 3,\n"
-                            "      \"v_i\": []\n"
-                            "    }\n"
-                            "  ]\n"
-                            "}";
-        VALIDATE_EXCEPTION(json, "[\"v_o\"][0][\"s\"] expected a string");
-    }
-
-    cout << " " << num_tests_passed << "/" << num_tests
-         << " tests passed!" << endl;
-
-    std::vector<A> vec;
-    A a;
-    a.i = 42;
-    vec.push_back(a);
-    to_json_stream(a, cout);
-    to_json_stream(vec, cout);
-    return num_tests != num_tests_passed;
+  return num_fails == 0 ? 0 : 1;
 }

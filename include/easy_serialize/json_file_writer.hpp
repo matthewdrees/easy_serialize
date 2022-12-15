@@ -15,7 +15,7 @@ namespace easy_serialize
         std::FILE *fp = fopen(filename.c_str(), "w");
         if (!fp)
         {
-            status.error_message = "File opening failed.";
+            status.set_error_message("File opening failed.");
         }
         else
         {
