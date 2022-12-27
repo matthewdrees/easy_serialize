@@ -446,5 +446,51 @@ namespace easy_serialize
             }
             return status;
         }
+
+        template <typename BufferPtr, typename T>
+        EasySerializeStatus from_json_buffer_vector(BufferPtr buffer_ptr, size_t buffer_size, std::vector<T> &v)
+        {
+            EasySerializeStatus status;
+            rapidjson::Document _d;
+            _d.Parse<RAPIDJSON_PARSE_FLAGS>(buffer_ptr, buffer_size);
+            if (_d.HasParseError())
+            {
+                status.set_error_message(rapidjson::GetParseError_En(_d.GetParseError()));
+                return status;
+            }
+            try
+            {
+                RapidJsonReaderArchive a;
+                a._ez_vector(_d, v);
+            }
+            catch (const std::exception &ex)
+            {
+                status.set_error_message(ex.what());
+            }
+            return status;
+        }
+
+        template <typename BufferPtr, typename T>
+        EasySerializeStatus from_json_buffer_vector_enums(BufferPtr buffer_ptr, size_t buffer_size, std::vector<T> &v)
+        {
+            EasySerializeStatus status;
+            rapidjson::Document _d;
+            _d.Parse<RAPIDJSON_PARSE_FLAGS>(buffer_ptr, buffer_size);
+            if (_d.HasParseError())
+            {
+                status.set_error_message(rapidjson::GetParseError_En(_d.GetParseError()));
+                return status;
+            }
+            try
+            {
+                RapidJsonReaderArchive a;
+                a._ez_vector_enums(_d, v);
+            }
+            catch (const std::exception &ex)
+            {
+                status.set_error_message(ex.what());
+            }
+            return status;
+        }
     }
 }

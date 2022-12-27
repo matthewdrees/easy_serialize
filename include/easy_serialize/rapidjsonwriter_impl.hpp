@@ -37,45 +37,45 @@ namespace easy_serialize
                 _writer.Key(key);
                 _ez(b);
             }
-            void ez(const char *key, int8_t i)
+            void ez(const char *key, int8_t i8)
             {
                 _writer.Key(key);
-                _ez(i);
+                _ez(i8);
             }
-            void ez(const char *key, int16_t i)
+            void ez(const char *key, int16_t i16)
             {
                 _writer.Key(key);
-                _ez(i);
+                _ez(i16);
             }
-            void ez(const char *key, int32_t i)
+            void ez(const char *key, int32_t i32)
             {
                 _writer.Key(key);
-                _ez(i);
+                _ez(i32);
             }
-            void ez(const char *key, int64_t i)
+            void ez(const char *key, int64_t i64)
             {
                 _writer.Key(key);
-                _ez(i);
+                _ez(i64);
             }
-            void ez(const char *key, uint8_t u)
+            void ez(const char *key, uint8_t u8)
             {
                 _writer.Key(key);
-                _ez(u);
+                _ez(u8);
             }
-            void ez(const char *key, uint16_t u)
+            void ez(const char *key, uint16_t u16)
             {
                 _writer.Key(key);
-                _ez(u);
+                _ez(u16);
             }
-            void ez(const char *key, uint32_t u)
+            void ez(const char *key, uint32_t u32)
             {
                 _writer.Key(key);
-                _ez(u);
+                _ez(u32);
             }
-            void ez(const char *key, uint64_t u)
+            void ez(const char *key, uint64_t u64)
             {
                 _writer.Key(key);
-                _ez(u);
+                _ez(u64);
             }
             // Rapidjson doesn't support "float" (only "double"), so leave this out.
             // void ez(const char *key, float f)
@@ -222,7 +222,7 @@ namespace easy_serialize
             void _ez_vector(std::vector<T> &v)
             {
                 _writer.StartArray();
-                for (auto &t : v)
+                for (const auto &t : v)
                 {
                     _ez(t);
                 }
@@ -232,7 +232,7 @@ namespace easy_serialize
             void _ez_vector_enums(std::vector<T> &v)
             {
                 _writer.StartArray();
-                for (auto e : v)
+                for (const auto e : v)
                 {
                     _ez_enum(e);
                 }

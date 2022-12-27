@@ -7,7 +7,7 @@
 
 namespace easy_serialize
 {
-    // Populate object with UTF-8 json string in a buffer.
+    // Populate object with UTF-8 json in a buffer.
     //
     // \param buffer_ptr: pointer to char or uint8 array (gets reinterpret_cast to char*)
     // \param buffer_size: size of buffer.
@@ -19,26 +19,39 @@ namespace easy_serialize
         return rapidjson_impl::from_json_buffer(buffer_ptr, buffer_size, obj);
     }
 
-    // Populate std::vector of objects with UTF-8 json string in buffer.
+    // Populate std::vector of objects with UTF-8 json in buffer.
     //
     // \param buffer_ptr: pointer to char or uint8 array (gets reinterpret_cast to char*)
     // \param buffer_size: size of buffer.
     // \param v: vector of objects to populate.
     // \return: EasySerializeStatus object. If bool operator() is true there were no errors.
-    // template <class BufferPtr, typename T>
-    // EasySerializeStatus from_json_buffer_vector(BufferPtr buffer_ptr, size_t buffer_size, std::vector<T> &v)
-    // {
-    // }
-
-    template <typename T>
-    EasySerializeStatus from_json_string(const std::string &json_string, T &obj)
+    template <class BufferPtr, typename T>
+    EasySerializeStatus from_json_buffer_vector_objects(BufferPtr buffer_ptr, size_t buffer_size, std::vector<T> &v)
     {
-        return from_json_buffer(json_string.c_str(), json_string.size(), obj);
+        return rapidjson_impl::from_json_buffer_vector_objects(buffer_ptr, buffer_size, v);
     }
 
-    // template <typename T>
-    // EasySerializeStatus from_json_string(const std::string &json_string, std::vector<T> &obj)
-    // {
-    // }
+    // Populate std::vector of supported primitive types with UTF-8 json in buffer.
+    //
+    // \param buffer_ptr: pointer to char or uint8 array (gets reinterpret_cast to char*)
+    // \param buffer_size: size of buffer.
+    // \param v: vector of primitive types to populate.
+    // \return: EasySerializeStatus object. If bool operator() is true there were no errors.
+    template <class BufferPtr, typename T>
+    EasySerializeStatus from_json_buffer_vector(BufferPtr buffer_ptr, size_t buffer_size, std::vector<T> &v)
+    {
+        return rapidjson_impl::from_json_buffer_vector(buffer_ptr, buffer_size, v);
+    }
 
+    // Populate std::vector of enums with UTF-8 json in buffer.
+    //
+    // \param buffer_ptr: pointer to char or uint8 array (gets reinterpret_cast to char*)
+    // \param buffer_size: size of buffer.
+    // \param v: vector of enums to populate.
+    // \return: EasySerializeStatus object. If bool operator() is true there were no errors.
+    template <class BufferPtr, typename T>
+    EasySerializeStatus from_json_buffer_vector_enums(BufferPtr buffer_ptr, size_t buffer_size, std::vector<T> &v)
+    {
+        return rapidjson_impl::from_json_buffer_vector_enums(buffer_ptr, buffer_size, v);
+    }
 } // namespace easy_serialize
