@@ -1,3 +1,4 @@
+// easy_serialize JSON writer implementation using rapidjson.
 #pragma once
 
 #include "easy_serialize_status.hpp"
@@ -14,7 +15,7 @@ namespace easy_serialize
 {
     namespace rapidjson_impl
     {
-        // Json writer archive based on rapidjson.
+        // JSON writer archive based on rapidjson.
         class RapidJsonWriterArchive
         {
         public:
@@ -256,8 +257,8 @@ namespace easy_serialize
         // Create UTF-8 JSON from object in memory buffer.
         //
         // \param string_buffer: rapidjson StringBuffer output stream buffer.
-        // \param obj: object to json
-        // \param json_indent: json indent formatting
+        // \param obj: object to JSON
+        // \param json_indent: JSON indent formatting
         template <typename T>
         void to_json_buffer(rapidjson::StringBuffer &string_buffer, T &obj,
                             JsonIndent json_indent)
@@ -272,7 +273,7 @@ namespace easy_serialize
         //
         // \param string_buffer: rapidjson::StringBuffer
         // \param v: vector of objects
-        // \param num_indent_spaces: Number of spaces to indent. If 0, make compact (no newlines).
+        // \param json_indent: JSON indent formatting
         template <typename T>
         void to_json_buffer_vector_objects(rapidjson::StringBuffer &string_buffer, std::vector<T> &v,
                                            JsonIndent json_indent)
@@ -286,8 +287,8 @@ namespace easy_serialize
         // Create UTF-8 JSON from vector of supported fundamental types in memory buffer.
         //
         // \param string_buffer: rapidjson::StringBuffer
-        // \param obj: object to json
-        // \param num_indent_spaces: Number of spaces to indent. If 0, make compact (no newlines).
+        // \param obj: object to JSON
+        // \param json_indent: JSON indent formatting
         template <typename T>
         void to_json_buffer_vector(rapidjson::StringBuffer &string_buffer, std::vector<T> &v,
                                    JsonIndent json_indent)
@@ -301,8 +302,8 @@ namespace easy_serialize
         // Create UTF-8 JSON from vector of enums in memory buffer.
         //
         // \param string_buffer: rapidjson::StringBuffer
-        // \param obj: object to json
-        // \param num_indent_spaces: Number of spaces to indent. If 0, make compact (no newlines).
+        // \param obj: object to JSON
+        // \param json_indent: JSON indent formatting
         template <typename T>
         void to_json_buffer_vector_enums(rapidjson::StringBuffer &string_buffer, std::vector<T> &v,
                                          JsonIndent json_indent)

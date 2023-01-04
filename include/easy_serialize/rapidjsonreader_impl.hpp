@@ -1,3 +1,4 @@
+// easy_serialize JSON reader implementation using rapidjson.
 #pragma once
 
 #include "easy_serialize_status.hpp"
@@ -14,7 +15,7 @@ namespace easy_serialize
 {
     namespace rapidjson_impl
     {
-        // Json reader archive based on rapidjson.
+        // JSON reader archive based on rapidjson.
         class RapidJsonReaderArchive
         {
         public:
@@ -177,6 +178,15 @@ namespace easy_serialize
             friend EasySerializeStatus from_json_buffer_vector_objects(BufferPtr buffer_ptr,
                                                                        size_t buffer_size,
                                                                        std::vector<T> &v);
+            template <class BufferPtr, typename T>
+            friend EasySerializeStatus from_json_buffer_vector(BufferPtr buffer_ptr,
+                                                               size_t buffer_size,
+                                                               std::vector<T> &v);
+            template <typename BufferPtr, typename T>
+            friend EasySerializeStatus from_json_buffer_vector_enums(BufferPtr buffer_ptr,
+                                                                     size_t buffer_size,
+                                                                     std::vector<T> &v,
+                                                                     T enum_value_N);
 
         private:
             void _ez(const rapidjson::Value &value, bool &b)
@@ -399,6 +409,12 @@ namespace easy_serialize
 
         constexpr int RAPIDJSON_PARSE_FLAGS = rapidjson::kParseValidateEncodingFlag | rapidjson::kParseNanAndInfFlag | rapidjson::kParseFullPrecisionFlag;
 
+        // Populate object with UTF-8 JSON in a buffer.
+        //
+        // \param buffer_ptr: pointer to buffer of UTF-8 JSON (gets reinterpret_cast to char*)
+        // \param buffer_size: size of buffer
+        // \param obj: object to populate
+        // \return: EasySerializeStatus object
         template <typename BufferPtr, typename T>
         EasySerializeStatus from_json_buffer(BufferPtr buffer_ptr, size_t buffer_size, T &obj)
         {
@@ -422,6 +438,12 @@ namespace easy_serialize
             return status;
         }
 
+        // Populate std::vector of objects with UTF-8 JSON in buffer.
+        //
+        // \param buffer_ptr: pointer to buffer of UTF-8 JSON (gets reinterpret_cast to char*)
+        // \param buffer_size: size of buffer
+        // \param v: vector of objects to populate
+        // \return: EasySerializeStatus object
         template <class BufferPtr, typename T>
         EasySerializeStatus from_json_buffer_vector_objects(BufferPtr buffer_ptr,
                                                             size_t buffer_size,
@@ -447,6 +469,12 @@ namespace easy_serialize
             return status;
         }
 
+        // Populate std::vector of primitive types with UTF-8 JSON in buffer.
+        //
+        // \param buffer_ptr: pointer to buffer of UTF-8 JSON (gets reinterpret_cast to char*)
+        // \param buffer_size: size of buffer
+        // \param v: vector of primitive types to populate
+        // \return: EasySerializeStatus object
         template <typename BufferPtr, typename T>
         EasySerializeStatus from_json_buffer_vector(BufferPtr buffer_ptr, size_t buffer_size, std::vector<T> &v)
         {
@@ -470,8 +498,21 @@ namespace easy_serialize
             return status;
         }
 
+        // Populate std::vector of enums with UTF-8 JSON in buffer.
+        //
+        // Constraints:
+        //  * The client must define a char* to_string(Enum) function. The returned strings
+        //    must be unique.
+        //  * The enum integer values must be contiguous from  0 to < enum_value_N.
+        //
+        // \param buffer_ptr: pointer to buffer of UTF-8 JSON (gets reinterpret_cast to char*)
+        // \param buffer_size: size of buffer
+        // \param v: vector of enums to populate
+        // \param enum_value_N: Last enum value (not a valid enum)
+        // \return: EasySerializeStatus object
         template <typename BufferPtr, typename T>
-        EasySerializeStatus from_json_buffer_vector_enums(BufferPtr buffer_ptr, size_t buffer_size, std::vector<T> &v)
+        EasySerializeStatus from_json_buffer_vector_enums(BufferPtr buffer_ptr, size_t buffer_size,
+                                                          std::vector<T> &v, T enum_value_N)
         {
             EasySerializeStatus status;
             rapidjson::Document _d;
@@ -484,7 +525,7 @@ namespace easy_serialize
             try
             {
                 RapidJsonReaderArchive a;
-                a._ez_vector_enums(_d, v);
+                a._ez_vector_enums(_d, v, enum_value_N);
             }
             catch (const std::exception &ex)
             {

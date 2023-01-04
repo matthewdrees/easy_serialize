@@ -1,3 +1,4 @@
+// easy_serialize JSON writer implementation.
 #pragma once
 
 #include "json_indent.hpp"

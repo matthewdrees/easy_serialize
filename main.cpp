@@ -1,7 +1,10 @@
+// Sample easy_serialize usage.
+
 #include "easy_serialize/json_reader.hpp"
 #include "easy_serialize/json_writer.hpp"
 
 #include <iostream>
+#include <vector>
 
 enum OrangeJuicePulpLevel
 {
@@ -102,21 +105,29 @@ int main(int, char *[])
   "s": "grr",
   "pulp level": "medium",
   "y": {
-   "i": 1,
-   "i2": 2
+    "i": 1,
+    "i2": 2
   },
   "v_y": [
-   {
-     "i": 3,
-     "i2": 4
-   },
-   {
-     "i": 5,
-     "i2": 6
-   }
+    {
+      "i": 3,
+      "i2": 4
+    },
+    {
+      "i": 5,
+      "i2": 6
+    }
   ],
-  "v_e" : ["medium", "high", "low"],
-  "v_s" : ["we", "are", "strings"]
+  "v_e": [
+    "medium",
+    "high",
+    "low"
+  ],
+  "v_s": [
+    "we",
+    "are",
+    "strings"
+  ]
 })zzz";
     Z z;
     const auto status = easy_serialize::from_json_string(json, z);
@@ -125,6 +136,17 @@ int main(int, char *[])
         std::cerr << status.get_error_message() << "\n";
         return 1;
     }
-    std::cout << easy_serialize::to_json_string(z) << "\n";
+    const std::string json2 = easy_serialize::to_json_string(z);
+    std::cout << json2 << "\n";
+
+    if (json == json2)
+    {
+        std::cout << "Read/write JSON strings are equal.\n";
+    }
+    else
+    {
+        std::cout << "Read/write JSON strings are NOT equal.\n";
+        std::cout << json << "\n";
+    }
     return 0;
 }

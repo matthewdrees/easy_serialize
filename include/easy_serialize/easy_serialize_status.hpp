@@ -4,7 +4,17 @@
 
 namespace easy_serialize
 {
-    // Return status for to/from operations
+    // Return status and error message for some easy_serialize operations.
+    //
+    // Example:
+    //     O object;
+    //     const auto status = easy_serialize::from_json_string(json_string, object);
+    //     if (status) {
+    //         // Success. Do something with object.
+    //     }
+    //     else {
+    //         std::cerr << status.get_error_message() << "\n";
+    //     }
     class EasySerializeStatus
     {
         std::string _error_message{""};

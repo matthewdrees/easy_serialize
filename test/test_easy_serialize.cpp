@@ -1,5 +1,7 @@
 // Unit tests for easy_serialize library.
 
+#include "easy_serialize/json_file_reader.hpp"
+#include "easy_serialize/json_file_writer.hpp"
 #include "easy_serialize/json_reader.hpp"
 #include "easy_serialize/json_writer.hpp"
 
@@ -129,7 +131,7 @@ int test_writer_mins()
 })zzz";
   if (expected != actual)
   {
-    std::cerr << __FILE__ << ":" << __LINE__ << "FAIL, expected: " << expected
+    std::cerr << __FILE__ << ":" << __LINE__ << ", FAIL, expected: " << expected
               << "\nactual: " << actual << "\n";
     return 1;
   }
@@ -193,14 +195,124 @@ bool test_writer_maxes()
 })zzz";
   if (expected != actual)
   {
-    std::cerr << __FILE__ << ":" << __LINE__ << "FAIL, expected: " << expected
+    std::cerr << __FILE__ << ":" << __LINE__ << ", FAIL, expected: " << expected
               << "\nactual: " << actual << "\n";
     return 1;
   }
   return 0;
 }
 
-int test_read()
+int test_to_from_vector_objects()
+{
+  const std::string expected = R"zzz([
+  {
+    "d": 2.0,
+    "d2": 1.0
+  },
+  {
+    "d": 5.0,
+    "d2": 6.0
+  }
+])zzz";
+  int num_fails = 0;
+  std::vector<Y> v_y;
+  const auto status = easy_serialize::from_json_string_vector_objects(expected, v_y);
+  const auto actual = easy_serialize::to_json_string_vector_objects(v_y);
+  if (!status || expected != actual)
+  {
+    ++num_fails;
+    std::cerr << __FILE__ << ":" << __LINE__ << ", FAIL, error: \"" << status.get_error_message()
+              << "\"\nexpected: " << expected
+              << "\nactual: " << actual << "\n";
+  }
+  const std::string filename = "test_vector_objects.json";
+  const auto file_write_status = easy_serialize::to_json_file_vector_objects(filename, v_y);
+  if (!file_write_status)
+  {
+    ++num_fails;
+    std::cerr << __FILE__ << ":" << __LINE__ << ", FAIL, file write error: \""
+              << file_write_status.get_error_message();
+  }
+  else
+  {
+    std::vector<Y> v_y2;
+    const auto file_read_status = easy_serialize::from_json_file_vector_objects(filename, v_y2);
+    if (!file_read_status)
+    {
+      ++num_fails;
+      std::cerr << __FILE__ << ":" << __LINE__ << ", FAIL, file read error: \""
+                << file_read_status.get_error_message();
+    }
+    else
+    {
+      auto v_y2_str = easy_serialize::to_json_string_vector_objects(v_y2);
+      if (expected != v_y2_str)
+      {
+        ++num_fails;
+        std::cerr << __FILE__ << ":" << __LINE__ << ", FAIL, "
+                  << "\"\nexpected: " << expected
+                  << "\nactual: " << v_y2_str << "\n";
+      }
+    }
+  }
+  std::remove(filename.c_str());
+  return num_fails;
+}
+
+int test_to_from_vector()
+{
+  const std::string expected = R"zzz([
+  "a",
+  "vector",
+  "of",
+  "strings"
+])zzz";
+  int num_fails = 0;
+  std::vector<std::string> v;
+  const auto status = easy_serialize::from_json_string_vector(expected, v);
+  const auto actual = easy_serialize::to_json_string_vector(v);
+  if (!status || expected != actual)
+  {
+    ++num_fails;
+    std::cerr << __FILE__ << ":" << __LINE__ << ", FAIL, error: \"" << status.get_error_message()
+              << "\"\nexpected: " << expected
+              << "\nactual: " << actual << "\n";
+  }
+  const std::string filename = "test_vector.json";
+  const auto file_write_status = easy_serialize::to_json_file_vector(filename, v);
+  if (!file_write_status)
+  {
+    ++num_fails;
+    std::cerr << __FILE__ << ":" << __LINE__ << ", FAIL, file write error: \""
+              << file_write_status.get_error_message();
+  }
+  else
+  {
+    std::vector<std::string> v2;
+    const auto file_read_status = easy_serialize::from_json_file_vector(filename, v);
+    if (!file_read_status)
+    {
+      ++num_fails;
+      std::cerr << __FILE__ << ":" << __LINE__ << ", FAIL, file read error: \""
+                << file_read_status.get_error_message();
+    }
+    else
+    {
+      auto v2_str = easy_serialize::to_json_string_vector(v);
+      if (expected != v2_str)
+      {
+        ++num_fails;
+        std::cerr << __FILE__ << ":" << __LINE__ << ", FAIL, "
+                  << "\"\nexpected: " << expected
+                  << "\nactual: " << v2_str << "\n";
+      }
+    }
+  }
+  std::remove(filename.c_str());
+  return num_fails;
+}
+
+int test_to_from_object()
 {
   const std::string expected = R"zzz({
   "i8": 127,
@@ -240,18 +352,101 @@ int test_read()
     "strings"
   ]
 })zzz";
-
+  int num_fails = 0;
   Z z;
   const auto status = easy_serialize::from_json_string(expected, z);
   const auto actual = easy_serialize::to_json_string(z);
   if (!status || expected != actual)
   {
-    std::cerr << __FILE__ << ":" << __LINE__ << "FAIL, error: \"" << status.get_error_message()
+    ++num_fails;
+    std::cerr << __FILE__ << ":" << __LINE__ << ", FAIL, error: \"" << status.get_error_message()
               << "\"\nexpected: " << expected
               << "\nactual: " << actual << "\n";
-    return 1;
   }
-  return 0;
+  const std::string filename = "test_object.json";
+  const auto file_write_status = easy_serialize::to_json_file(filename, z);
+  if (!file_write_status)
+  {
+    ++num_fails;
+    std::cerr << __FILE__ << ":" << __LINE__ << ", FAIL, file write error: \""
+              << file_write_status.get_error_message();
+  }
+  else
+  {
+    Z z2;
+    const auto file_read_status = easy_serialize::from_json_file(filename, z2);
+    if (!file_read_status)
+    {
+      ++num_fails;
+      std::cerr << __FILE__ << ":" << __LINE__ << ", FAIL, file read error: \""
+                << file_read_status.get_error_message();
+    }
+    else
+    {
+      auto z2_str = easy_serialize::to_json_string(z2);
+      if (expected != z2_str)
+      {
+        ++num_fails;
+        std::cerr << __FILE__ << ":" << __LINE__ << ", FAIL, "
+                  << "\"\nexpected: " << expected
+                  << "\nactual: " << z2_str << "\n";
+      }
+    }
+  }
+  std::remove(filename.c_str());
+  return num_fails;
+}
+
+int test_to_from_vector_enums()
+{
+  const std::string expected = R"zzz([
+  "medium",
+  "low",
+  "high"
+])zzz";
+  int num_fails = 0;
+  std::vector<OrangeJuicePulpLevel> v;
+  const auto status = easy_serialize::from_json_string_vector_enums(expected, v, OrangeJuicePulpLevel::N);
+  const auto actual = easy_serialize::to_json_string_vector_enums(v);
+  if (!status || expected != actual)
+  {
+    ++num_fails;
+    std::cerr << __FILE__ << ":" << __LINE__ << ", FAIL, error: \"" << status.get_error_message()
+              << "\"\nexpected: " << expected
+              << "\nactual: " << actual << "\n";
+  }
+  const std::string filename = "test_vector_enums.json";
+  const auto file_write_status = easy_serialize::to_json_file_vector_enums(filename, v);
+  if (!file_write_status)
+  {
+    ++num_fails;
+    std::cerr << __FILE__ << ":" << __LINE__ << ", FAIL, file write error: \""
+              << file_write_status.get_error_message();
+  }
+  else
+  {
+    std::vector<OrangeJuicePulpLevel> v2;
+    const auto file_read_status = easy_serialize::from_json_file_vector_enums(filename, v, OrangeJuicePulpLevel::N);
+    if (!file_read_status)
+    {
+      ++num_fails;
+      std::cerr << __FILE__ << ":" << __LINE__ << ", FAIL, file read error: \""
+                << file_read_status.get_error_message();
+    }
+    else
+    {
+      auto v2_str = easy_serialize::to_json_string_vector_enums(v);
+      if (expected != v2_str)
+      {
+        ++num_fails;
+        std::cerr << __FILE__ << ":" << __LINE__ << ", FAIL, "
+                  << "\"\nexpected: " << expected
+                  << "\nactual: " << v2_str << "\n";
+      }
+    }
+  }
+  std::remove(filename.c_str());
+  return num_fails;
 }
 
 struct TestCase
@@ -584,7 +779,9 @@ int test_read_versioned_object()
 
 int main()
 {
-  const int num_fails = test_writer_mins() + test_writer_maxes() + test_read() +
+  const int num_fails = test_writer_mins() + test_writer_maxes() +
+                        test_to_from_object() + test_to_from_vector_objects() +
+                        test_to_from_vector() + test_to_from_vector_enums() +
                         test_read_bool() + test_read_i8() + test_read_i16() +
                         test_read_i32() + test_read_i64() + test_read_u8() +
                         test_read_u16() + test_read_u32() + test_read_u64() +

@@ -1,3 +1,4 @@
+// easy_serialize JSON helper functions for writing to a file.
 #pragma once
 
 #include "easy_serialize_status.hpp"
