@@ -11,10 +11,10 @@ enum OrangeJuicePulpLevel
     Low,
     Medium,
     High,
-    N // One past last valid value. (Have to have this.)
+    N // One past last valid value. Must have this.
 };
 
-// Client has to provide to_string() function for enum values.
+// Client must provide a to_string() function for enums.
 const char *to_string(OrangeJuicePulpLevel level)
 {
     switch (level)

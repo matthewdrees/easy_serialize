@@ -1,10 +1,12 @@
 # easy_serialize
 
-easy_serialize is a header-only C++11 library for those that want their C++ objects to/from JSON without much fuss. (And possibly other data formats in the future.)
+easy_serialize is a header-only >= C++14 library for those that want their C++ objects to/from JSON without much fuss. (And possibly other data formats in the future.)
 
-# Easy to write some JSON
+# Easy to read and write JSON
 
-    #include <easy_serialize/json_writer.h>
+```
+    #include "easy_serialize/json_reader.hpp"
+    #include "easy_serialize/json_writer.h"
 
     enum class OrangeJuicePulpLevel {
         Low,
@@ -13,7 +15,7 @@ easy_serialize is a header-only C++11 library for those that want their C++ obje
         N // One past last valid value. (Have to have this.)
     };
 
-    // Client has to provide to_string() function for enum values.
+    // Client has to define a to_string() function for enum values.
     const char* to_string(OrangeJuicePulpLevel level)
     {
         switch (level) {
@@ -83,102 +85,77 @@ easy_serialize is a header-only C++11 library for those that want their C++ obje
         }
     };
 
-    int main(int, char*[])
+    int main(int, char *[])
     {
-      LEFT OFF HERE!!
-        Z z { true, 0.1, "grr", OrangeJuicePulpLevel::medium, {1, 2}, {{3,4}, {5,6}}};
-        std::cout << to_json_string(z);
+        const std::string json = R"zzz({
+  "i8": 127, 
+  "i16": -32768, 
+  "i32": 42, 
+  "i64": -9, 
+  "u8": 255, 
+  "u16": 65535, 
+  "u32": 196, 
+  "u64": 327, 
+  "b": true, 
+  "d": 0.1, 
+  "s": "grr", 
+  "pulp level": "medium", 
+  "y": {
+    "i": 1,
+    "i2": 2
+  }, 
+  "v_y": [
+    {
+      "i": 3,
+      "i2": 4
+    },
+    {
+      "i": 5,
+      "i2": 6
     }
+  ], 
+  "v_e": [
+    "medium",
+    "high",
+    "low"
+  ], 
+  "v_s": [
+    "we",
+    "are",
+    "strings"
+  ]
+})zzz"; 
 
-    ... prints this JSON (the default indent level is 2 spaces) ...
-
-    {
-      "b": true,
-      "d": 0.1,
-      "pulp level": "medium",
-      "s": "grr",
-      "y": {
-        "i": 1,
-        "i2": 2
-      },
-      "v_y": [
-        {
-          "i": 3,
-          "i2": 4
-        },
-        {
-          "i": 5,
-          "i2": 6
-        }
-      ]
-    }
-
-# Easy to read some JSON
-
-    With the same code from above you can read json into your objects.
-
-    #include <easy_serialize/json_reader.h>
-    #include <iostream>
-
-    int main(int, char*[])
-    {
-        const std::string json_string = R""""(
-        {
-          "b": false,
-          "d": 0.2,
-          "pulp level": "low",
-          "s": "more grr",
-          "y": {
-            "i": 7,
-            "i2": 8
-          },
-          "v_y": [
-            {
-              "i": 9,
-              "i2": 10 
-            },
-            {
-              "i": 11,
-              "i2": 12 
-            }
-          ]
-        }
-        """");
-
+        // Read the above JSON string and populate an object.
         Z z;
-        const auto status = easy_serialize::from_json_string(json_string, z);
-        if (status) {
-            // Object "z" is populated with json. Do something with it...
-        }
-        else {
-            std::cerr << status.error_message << "\n";
+        const auto status = easy_serialize::from_json_string(json, z);
+        if (!status)
+        {
+            std::cerr << status.get_error_message() << "\n";
+            return 1;
         }
 
+        // Write the object json to stdout. (Same as string above.)
+        std::cout << easy_serialize::to_json_string(z) << "\n";
         return 0;
     }
+```
 
 # Easy to find errors in your JSON
 
-Let's say one of the nested JSON values above was the wrong type. The program above would produce this error message...
+Errors while reading JSON give you a location and error message. Examples:
 
-    ["v_y"][1]["i2"] expected an int64
-
-... or the "d" key didn't exist ...
-
-    ["d"] key doesn't exist
-
-... or an enum value didn't exist ...
-
-    ["pulp level"] expected an enum value
-
-... and many others.
+ * ["v_y"][1]["i2"] expected an int64
+ * ["d"] key doesn't exist
+ * ["pulp level"] expected an enum value
 
 TODO: The default implementation uses rapidjson for UTF-8 validation and parse errors. If one of these errors happens it gives you error messages like "invalid encoding in string" or "Missing a closing quotation mark in string.", but doesn't give you an exact location, which would be nice.
 
-# Class versioning
+# Object versioning
 
 Example with object versioning.
 
+```
     class W
     {
     public:
@@ -196,20 +173,24 @@ Example with object versioning.
         template<class Archive>
         void serialize(Archive& ar)
         {
-            ar.class_version(2) // Enables class versioning, with current class version = 2.
-            ar.ez("i0", i0);
+            ar.class_version(2) // Enables versioning, with current class version = 2.
+            ar.ez("i0", i0); // Supported object version is assumed zero with the usual call.
 
             // Version 1
-            ar.ez("i1", i1, 1); // <-- Using method with supported_object_version parameter.
-            ar.ez("s", s, 1); // <-- Using method with supported_object_version parameter.
+            ar.ez("i1", i1, 1); // Note: Using methods with supported_object_version parameter.
+            ar.ez("s", s, 1);
 
             // Version 2 
-            ar.ez("i2", i2, 2); // <-- Using method with supported_object_version parameter.
+            ar.ez("i2", i2, 2);
         }
     };
+```
 
 For json archivers this adds a "_objver": int key/value pair to the json if the class version is > 0.
 
+```
+
+    // JSON for class above for different object versions.
     {
       "i1": 0
     }
@@ -228,8 +209,9 @@ For json archivers this adds a "_objver": int key/value pair to the json if the 
       "s": "",
       "i3": 0
     }
+```
 
-You can only add members with a version change. A possible modification in the future would be to add a function that can remember the deserialized object version so the client could do further processing.
+You can only add members with a version change (not remove existing members). A possible modification in the future would be to add a function that can remember the deserialized object version so the client could do further processing.
 
 For binary archivers (that don't exist yet) it will include an integer version field.
 
@@ -258,8 +240,8 @@ The following types are supported:
 * uint64_t
 * double (supports NaN, Inf, Infinity, -Inf, and -Infinity)
 * std::string
-* enum and enum classes with a to_string function.
-* classes/structs with a serialize method.
+* enum and enum classes with a to_string function
+* classes/structs with a serialize method
 * std::vector
 
 Not supported:
@@ -268,3 +250,4 @@ Not supported:
 * polymorphism
 * classes/structs without a serialize method (must be intrusive)
 * vectors of vectors
+# Test coverage
