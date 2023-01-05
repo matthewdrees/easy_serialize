@@ -223,7 +223,7 @@ int test_to_from_vector_objects()
     ++num_fails;
     std::cerr << __FILE__ << ":" << __LINE__ << ", FAIL, error: \"" << status.get_error_message()
               << "\"\nexpected: " << expected
-              << "\nactual: " << actual << "\n";
+              << "\nactual: " << actual << "\"\n";
   }
   const std::string filename = "test_vector_objects.json";
   const auto file_write_status = easy_serialize::to_json_file_vector_objects(filename, v_y);
@@ -231,7 +231,7 @@ int test_to_from_vector_objects()
   {
     ++num_fails;
     std::cerr << __FILE__ << ":" << __LINE__ << ", FAIL, file write error: \""
-              << file_write_status.get_error_message();
+              << file_write_status.get_error_message() << "\"\n";
   }
   else
   {
@@ -241,7 +241,7 @@ int test_to_from_vector_objects()
     {
       ++num_fails;
       std::cerr << __FILE__ << ":" << __LINE__ << ", FAIL, file read error: \""
-                << file_read_status.get_error_message();
+                << file_read_status.get_error_message() << "\"\n";
     }
     else
     {
@@ -276,7 +276,7 @@ int test_to_from_vector()
     ++num_fails;
     std::cerr << __FILE__ << ":" << __LINE__ << ", FAIL, error: \"" << status.get_error_message()
               << "\"\nexpected: " << expected
-              << "\nactual: " << actual << "\n";
+              << "\nactual: \"" << actual << "\"\n";
   }
   const std::string filename = "test_vector.json";
   const auto file_write_status = easy_serialize::to_json_file_vector(filename, v);
@@ -284,7 +284,7 @@ int test_to_from_vector()
   {
     ++num_fails;
     std::cerr << __FILE__ << ":" << __LINE__ << ", FAIL, file write error: \""
-              << file_write_status.get_error_message();
+              << file_write_status.get_error_message() << "\"\n";
   }
   else
   {
@@ -294,7 +294,7 @@ int test_to_from_vector()
     {
       ++num_fails;
       std::cerr << __FILE__ << ":" << __LINE__ << ", FAIL, file read error: \""
-                << file_read_status.get_error_message();
+                << file_read_status.get_error_message() << "\"\n";
     }
     else
     {
@@ -369,7 +369,7 @@ int test_to_from_object()
   {
     ++num_fails;
     std::cerr << __FILE__ << ":" << __LINE__ << ", FAIL, file write error: \""
-              << file_write_status.get_error_message();
+              << file_write_status.get_error_message() << "\"\n";
   }
   else
   {
@@ -379,7 +379,7 @@ int test_to_from_object()
     {
       ++num_fails;
       std::cerr << __FILE__ << ":" << __LINE__ << ", FAIL, file read error: \""
-                << file_read_status.get_error_message();
+                << file_read_status.get_error_message() << "\"\n";
     }
     else
     {
@@ -421,7 +421,7 @@ int test_to_from_vector_enums()
   {
     ++num_fails;
     std::cerr << __FILE__ << ":" << __LINE__ << ", FAIL, file write error: \""
-              << file_write_status.get_error_message();
+              << file_write_status.get_error_message() << "\"\n";
   }
   else
   {
@@ -431,7 +431,7 @@ int test_to_from_vector_enums()
     {
       ++num_fails;
       std::cerr << __FILE__ << ":" << __LINE__ << ", FAIL, file read error: \""
-                << file_read_status.get_error_message();
+                << file_read_status.get_error_message() << "\"\n";
     }
     else
     {

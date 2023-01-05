@@ -29,7 +29,7 @@ namespace easy_serialize
                 {
                     std::rewind(fp);
                     json.resize(static_cast<size_t>(sz));
-                    std::ignore = std::fread(&json[0], json.size(), json.size(), fp);
+                    std::ignore = std::fread(&json[0], sizeof(json[0]), json.size(), fp);
                 }
                 fclose(fp);
             }

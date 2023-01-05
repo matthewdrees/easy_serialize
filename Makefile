@@ -26,3 +26,7 @@ test : test_easy_serialize
 clean :
 	@rm main
 	@rm test_easy_serialize
+
+# Note to build on Windows:
+# cl.exe /EHsc /std:c++20 /Iinclude  /I..\rapidjson\include /D RAPIDJSAON_HAS_STDSTRING=1 /DRAPIDJSON_WRITE_DEFAULT_FLAGS=2 main.cpp /Femain.exe
+# cl.exe /EHsc /std:c++20 /Iinclude  /I..\rapidjson\include /D RAPIDJSAON_HAS_STDSTRING=1 /DRAPIDJSON_WRITE_DEFAULT_FLAGS=2 test/test_easy_serialize.cpp /Fetest.exe

@@ -8,6 +8,7 @@
 #include <rapidjson/stringbuffer.h>
 
 #include <cstdint>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -205,7 +206,7 @@ namespace easy_serialize
             }
             void _ez(const std::string &s)
             {
-                _writer.String(s);
+                _writer.String(s.c_str());
             }
             template <typename T>
             void _ez_enum(T &e)
