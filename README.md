@@ -251,3 +251,10 @@ Not supported:
 * classes/structs without a serialize method (must be intrusive)
 * vectors of vectors
 # Test coverage
+
+Built and tested with -Wpedantic, -Wshadow -Wextra -Wconversion -Wunused -Wshadow -Werror -fsanitize=address, undefined.
+
+v1.0.0:
+* g++ 9.3.0 --std=c++14, c++17, c++2a on Ubuntu 20.04.
+* clang 11.0.0 --std=c++14, c++17, c++20 on MacOS 12.6
+* Visual Studio 2022 (Compiler Version 19.32.31332)
